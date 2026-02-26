@@ -42,8 +42,10 @@ class NetworkManager:
                         if self.on_disconnection:
                             self.on_disconnection() # 2. Anunțăm deconectarea
                         break
-                    if self.on_message_received:
-                        self.on_message_received(data)
+                    messages = data.strip().split('\n')
+                    for msg in messages:
+                        if msg and self.on_message_received:
+                            self.on_message_received(msg)
             except: 
                 self.is_running = False
                 if self.on_disconnection:

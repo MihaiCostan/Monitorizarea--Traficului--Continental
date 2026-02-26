@@ -22,9 +22,9 @@ class TrafficGUI:
         self.clear_screen()
         tk.Label(self.root, text="BINE AI VENIT", font=("Arial", 16, "bold"), bg="#0099ff", fg="white").pack(pady=30)
         
-        tk.Button(self.root, text="LOGIN", width=20, command=self.setup_login_screen).pack(pady=10)
-        tk.Button(self.root, text="SIGNUP", width=20, command=self.setup_signup_screen).pack(pady=10)
-
+        tk.Button(self.root, text="LOGIN", width=20, command=self.setup_login_screen, highlightbackground="#0099ff").pack(pady=10)
+        tk.Button(self.root, text="SIGNUP", width=20, command=self.setup_signup_screen, highlightbackground="#0099ff").pack(pady=10)
+        tk.Button(self.root, text="EXIT", width=20, command=self.exit_button, highlightbackground="#0099ff").pack(pady=10)
 
     # UI SIGNUP
     def setup_signup_screen(self):
@@ -39,31 +39,31 @@ class TrafficGUI:
 
         # Câmpul pentru NUME
         tk.Label(self.root, text="Nume Complet:", bg="#0099ff").pack()
-        self.entry_nume = tk.Entry(self.root)
+        self.entry_nume = tk.Entry(self.root, bg="#0062a3")
         self.entry_nume.pack()
 
         # Campul pentru email
         tk.Label(self.root, text="Email:", bg="#0099ff").pack()
-        self.entry_email = tk.Entry(self.root)
+        self.entry_email = tk.Entry(self.root, bg="#0062a3")
         self.entry_email.pack()
 
         #Campul pentru parola
         tk.Label(self.root, text="Parola:", bg="#0099ff").pack()
-        self.entry_parola = tk.Entry(self.root)
+        self.entry_parola = tk.Entry(self.root, bg="#0062a3")
         self.entry_parola.pack()
 
         # Câmpul pentru MODEL MAȘINĂ
         tk.Label(self.root, text="Model Mașină:", bg="#0099ff").pack()
-        self.entry_model = tk.Entry(self.root)
+        self.entry_model = tk.Entry(self.root, bg="#0062a3")
         self.entry_model.pack()
 
         # Câmpul pentru NUMĂR ÎNMATRICULARE
         tk.Label(self.root, text="Număr Înmatriculare:", bg="#0099ff").pack()
-        self.entry_nr_auto = tk.Entry(self.root)
+        self.entry_nr_auto = tk.Entry(self.root, bg="#0062a3")
         self.entry_nr_auto.pack()
 
-        tk.Button(self.root, text="Creează Cont", command=self.handle_signup).pack()
-        tk.Button(self.root, text="Înapoi", command=self.setup_start_screen).pack()
+        tk.Button(self.root, text="Creează Cont", command=self.handle_signup, highlightbackground="#0099ff").pack()
+        tk.Button(self.root, text="Înapoi", command=self.setup_start_screen, highlightbackground="#0099ff").pack()
 
     def handle_signup(self):
         # Colectăm toate datele
@@ -90,16 +90,16 @@ class TrafficGUI:
     def setup_login_screen(self):
         self.clear_screen()
 
-        tk.Label(self.root, text="Email:").pack()
-        self.entry_email = tk.Entry(self.root)
+        tk.Label(self.root, text="Email:", bg="#0099ff").pack()
+        self.entry_email = tk.Entry(self.root, bg="#0062a3")
         self.entry_email.pack()
         
-        tk.Label(self.root, text="Parolă:").pack()
-        self.entry_pass = tk.Entry(self.root, show="*")
+        tk.Label(self.root, text="Parolă:", bg="#0099ff").pack()
+        self.entry_pass = tk.Entry(self.root, show="*", bg="#0062a3")
         self.entry_pass.pack()
     
-        tk.Button(self.root, text="Intră în cont", command=self.handle_login_auth).pack()
-        tk.Button(self.root, text="Înapoi", command=self.setup_start_screen).pack()
+        tk.Button(self.root, text="Intră în cont", command=self.handle_login_auth, highlightbackground="#0099ff").pack()
+        tk.Button(self.root, text="Înapoi", command=self.setup_start_screen, highlightbackground="#0099ff").pack()
 
 
     def handle_login_auth(self):
@@ -124,6 +124,20 @@ class TrafficGUI:
         else:
             messagebox.showerror("Eroare", "Serverul nu răspunde!")
 
+
+    def exit_button(self):
+        if messagebox.askyesno("Ieșire", "Sigur vrei să părăsești aplicația?"):
+            # 1. Oprim thread-ul de recepție și închidem socket-ul
+            if self.net:
+                self.net.is_running = False
+                if self.net.socket:
+                    try:
+                        self.net.socket.close()
+                    except:
+                        pass # Ignorăm dacă socket-ul era deja închis
+            
+            # 2. Închidem interfața grafică
+            self.root.destroy()
 
     def display_message(self, raw_data):
         try:
