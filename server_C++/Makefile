@@ -26,7 +26,7 @@ $(TARGET): $(OBJS)
 
 # Regula 'clean' pentru a șterge fișierele temporare
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -f $(OBJS)
 
 # Regula 'run' pentru a compila și rula direct
 run: $(TARGET)

@@ -3,6 +3,8 @@ import socket
 import select
 import threading
 
+BUFFER_SIZE = 2048
+
 class NetworkManager:
     def __init__(self, host, port):
         self.host = host
@@ -10,6 +12,7 @@ class NetworkManager:
         self.socket = None
         self.is_running = False
         self.on_message_received = None
+        self.on_disconnection = None
 
     def connect(self):
         try:
@@ -32,10 +35,17 @@ class NetworkManager:
             try:
                 ready = select.select([self.socket], [], [], 0.5)
                 if ready[0]:
-                    data = self.socket.recv(2048).decode('utf-8')
+                    data = self.socket.recv(BUFFER_SIZE).decode('utf-8')
                     if not data: 
+                        print(f"Deconectare bruscă de la server!")
+                        self.is_running = False # Oprim loop-ul
+                        if self.on_disconnection:
+                            self.on_disconnection() # 2. Anunțăm deconectarea
                         break
                     if self.on_message_received:
                         self.on_message_received(data)
             except: 
+                self.is_running = False
+                if self.on_disconnection:
+                    self.on_disconnection()
                 break
