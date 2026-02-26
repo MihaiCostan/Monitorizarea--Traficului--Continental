@@ -9,26 +9,36 @@ void TrafficManager::proceseaza_mesaj(int client_socket,
         auto j = json::parse(raw_data);
         std::string type = j["type"];
 
-        if (j["type"] == "signup")
+        if (type == "signup")
         {
             if (db.add_user(j))
             {
-                trimite_raspuns(client_socket,
-                                {{"status", "ok"}, {"msg", "Cont creat!"}});
+                trimite_raspuns(client_socket, {{"type", "signup_response"}, // Adăugat pentru sincronizare
+                                                {"status", "success"},       // Schimbat din "ok" în "success" pentru a bate cu Python
+                                                {"msg", "Cont creat cu succes!"}});
+            }
+            else
+            {
+                trimite_raspuns(client_socket, {{"type", "signup_response"},
+                                                {"status", "error"},
+                                                {"msg", "Eroare: Email-ul există deja!"}});
             }
         }
-        else if (j["type"] == "login")
+        else if (type == "login")
         {
             json auth = db.authenticate_user(j["email"], j["password"]);
+
+            // Forțăm type-ul să fie cel așteptat de Python
+            auth["type"] = "login_response";
+
             if (auth["status"] == "success")
             {
-                auth["type"] = "auth_response";
                 trimite_raspuns(client_socket, auth);
             }
             else
             {
-                trimite_raspuns(client_socket,
-                                {{"type", "auth_response"}, {"status", "fail"}});
+                trimite_raspuns(client_socket, {{"type", "login_response"},
+                                                {"status", "fail"}});
             }
         }
         else if (type == "speed_update")
@@ -44,21 +54,6 @@ void TrafficManager::proceseaza_mesaj(int client_socket,
     {
         std::cerr << "Eroare Business Logic: " << e.what() << std::endl;
     }
-}
-
-void TrafficManager::handle_login_auth(int socket, const json &j)
-{
-    std::string email = j["email"];
-    std::string password = j["password"];
-
-    // Pseudo-cod SQL: SELECT * FROM users WHERE email='...' AND password='...'
-    // Daca gasim userul:
-    json response = {{"type", "auth_success"},
-                     {"user_id", "25"},
-                     {"nume", "Marian"},
-                     {"masina", "BMW"},
-                     {"numar_masina", "IS 02 MSU"}};
-    trimite_raspuns(socket, response);
 }
 
 void TrafficManager::handle_speed_update(int socket, const json &j)
