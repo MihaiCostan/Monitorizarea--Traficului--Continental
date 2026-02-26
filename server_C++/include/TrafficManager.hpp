@@ -3,6 +3,7 @@
 #include <vector>
 #include <map>
 #include <iostream>
+#include <sys/socket.h>
 
 #include "json.hpp"
 using json = nlohmann::json;
@@ -23,7 +24,6 @@ struct Client{
 class TrafficManager {
     private:
         std::map<int, Client> participanti;
-    
     public:
         void proceseaza_mesaj(int client_socket, const std::string &raw_data, const std::vector<int> &toti_clientii);
     

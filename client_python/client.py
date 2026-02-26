@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import messagebox, scrolledtext
 
 SERVER_IP = "127.0.0.1"
-PORT = 8888
+PORT = 1111
 BUFFER_SIZE = 2048
 
 # def trimite_viteza(viteza):
@@ -101,4 +101,3 @@ class ClientGUI:
             self.setup_game_ui()
         except Exception as e:
             messagebox.showerror("Eroare", f"Nu m-am putut conecta la server: {e}")
-    

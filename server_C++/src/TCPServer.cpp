@@ -30,10 +30,11 @@ TCPServer::TCPServer(int port, TrafficManager& manager) : manager(manager){
         fprintf(stderr, "Listen failed");
         exit(EXIT_FAILURE);
     }
-    printf("Server started on port %d", port);
+    printf("[SERVER]: Server started on port %d\n", port);
 }
 
 void TCPServer::run() {
+    printf("[SERVER]: Server waiting for connections...\n");
     fd_set readfds;
     int sd, max_sd, activity, new_socket;
     char buffer[BUFFER_SIZE];
