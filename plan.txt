@@ -1,0 +1,13 @@
+TrafficMonitorProject/
+│
+├── server/ (C++)
+│   ├── include/ (fișiere .hpp)
+│   ├── src/     (fișiere .cpp)
+│   └── Makefile
+│
+├── client/ (Python)
+│   ├── network/
+│   ├── ui/
+│   └── main.py
+│
+└── README.md

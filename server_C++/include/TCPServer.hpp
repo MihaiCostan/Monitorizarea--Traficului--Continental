@@ -1,0 +1,24 @@
+#pragma once
+#include <arpa/inet.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/select.h>
+#include <time.h>
+#include <unistd.h>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <sstream>
+#include <fstream>
+#include "TrafficManager.hpp"
+
+class TCPServer {
+    private:
+        int server_fd;
+        std::vector<int> clients_sockets;
+        TrafficManager &manager;
+    public:
+        TCPServer(int port, TrafficManager& manager);
+        void run();
+};
