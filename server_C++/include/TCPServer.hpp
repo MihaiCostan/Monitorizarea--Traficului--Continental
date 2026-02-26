@@ -6,21 +6,25 @@
 #include <sys/select.h>
 #include <time.h>
 #include <unistd.h>
-#include <vector>
-#include <string>
+
 #include <algorithm>
-#include <sstream>
 #include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+
 #include "TrafficManager.hpp"
 
 #define BUFFER_SIZE 2048
 
-class TCPServer {
-    private:
-        int server_fd;
-        std::vector<int> clients_sockets;
-        TrafficManager &manager;
-    public:
-        TCPServer(int port, TrafficManager& manager);
-        void run();
+class TCPServer
+{
+private:
+    int server_fd;
+    std::vector<int> clients_sockets;
+    TrafficManager &manager;
+
+public:
+    TCPServer(int port, TrafficManager &manager);
+    void run();
 };

@@ -11,14 +11,14 @@ CXXFLAGS = -Wall -Iinclude -std=c++17
 TARGET = traffic_server
 
 # Lista fișierelor sursă
-SRCS = src/main.cpp src/TCPServer.cpp src/TrafficManager.cpp
+SRCS = src/main.cpp src/TCPServer.cpp src/TrafficManager.cpp src/DatabaseManager.cpp
 
 # Generăm lista fișierelor obiect (.o) din cele sursă
 OBJS = $(SRCS:.cpp=.o)
 
 # Regula principală: construiește executabilul
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS) -lsqlite3
 
 # Regula pentru a compila fiecare fișier .cpp în .o
 %.o: %.cpp
@@ -26,7 +26,7 @@ $(TARGET): $(OBJS)
 
 # Regula 'clean' pentru a șterge fișierele temporare
 clean:
-	rm -f $(OBJS)
+	rm -f $(OBJS) $(TARGET)
 
 # Regula 'run' pentru a compila și rula direct
 run: $(TARGET)

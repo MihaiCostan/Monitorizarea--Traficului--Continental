@@ -1,14 +1,18 @@
 #pragma once
-#include <string>
-#include <vector>
-#include <map>
-#include <iostream>
+#include <sqlite3.h>
 #include <sys/socket.h>
 
+#include <iostream>
+#include <map>
+#include <string>
+#include <vector>
+
+#include "DatabaseManager.hpp"
 #include "json.hpp"
 using json = nlohmann::json;
 
-struct Client{
+struct Client
+{
     int socket_fd;
     std::string user_id;
     std::string nume;
@@ -21,18 +25,27 @@ struct Client{
     bool vrea_peco = false;
 };
 
-class TrafficManager {
-    private:
-        std::map<int, Client> participanti;
-    public:
-        void proceseaza_mesaj(int client_socket, const std::string &raw_data, const std::vector<int> &toti_clientii);
-    
-    private:
-        void handle_login(int socket, json &j);
-        void handle_speed_update(int socket, json &j);
-        void handle_incident(int socket, json &j, const std::vector<int> &toti_clientii);
+class TrafficManager
+{
+private:
+    std::map<int, Client> participanti;
+    DatabaseManager db;
 
-        // Helper pentru trimiterea de mesaje JSON
-        void trimite_raspuns(int socket, json &j);
-        void broadcast(const std::vector<int> &receptori, json &j);
+public:
+    TrafficManager() : db("traffic.db") {}
+    void proceseaza_mesaj(int client_socket, const std::string &raw_data,
+                          const std::vector<int> &toti_clientii);
+
+private:
+    void handle_login(int socket, const json &j);
+    void handle_speed_update(int socket, const json &j);
+    void handle_incident(int socket, const json &j,
+                         const std::vector<int> &toti_clientii);
+
+    // Helper pentru trimiterea de mesaje JSON
+    void trimite_raspuns(int socket, const json &j);
+    void broadcast(const std::vector<int> &receptori, const json &j);
+
+    // Validator login
+    void handle_login_auth(int socket, const json &j);
 };
