@@ -13,6 +13,8 @@
 #include <fstream>
 #include "TrafficManager.hpp"
 
+#define BUFFER_SIZE 2048
+
 class TCPServer {
     private:
         int server_fd;

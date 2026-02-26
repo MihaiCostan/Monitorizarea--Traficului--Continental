@@ -1,6 +1,6 @@
+#include <iostream>
 #include "TCPServer.hpp"
 #include "TrafficManager.hpp"
-#include <iostream>
 
 int main() {
     try
