@@ -15,7 +15,7 @@ class TrafficGUI:
         self.net.on_disconnection = self.handle_disconnection
         
         self.root.title("Monitorizare Trafic - Continental")
-        self.root.geometry("600x700")
+        self.root.geometry("650x700")
         self.root.configure(bg="#0099ff")
 
         self.setup_start_screen()
@@ -125,6 +125,7 @@ class TrafficGUI:
         else:
             messagebox.showerror("Eroare", "Serverul nu răspunde!")
 
+    # UI Main Screen
     def setup_main_screen(self):
         self.clear_screen()
 
@@ -141,7 +142,14 @@ class TrafficGUI:
         self.map_widget.set_position(47.1585, 27.6014) # Coordonate Iași
         self.map_widget.set_zoom(15)
 
+        #Slider pentru viteza actuala
+        tk.Label(self.root, text="Viteza Ta Actuală (km/h):", bg="#0099ff", fg="white").pack()
+        self.speed_slider = tk.Scale(self.root, from_=0, to=150, orient="horizontal", bg="#0099ff")
+        self.speed_slider.set(50) # Viteza implicită
+        self.speed_slider.pack(fill="x", padx=20)
+
         #Loguri pentru accidente / eventuri
+        tk.Label(self.root, text="Jurnal Evenimente Trafic", bg="#0099ff", fg="white", font=("Arial", 10, "bold")).pack(pady=(10,0))
         self.status_text = scrolledtext.ScrolledText(self.root, height=8, state='disabled', font=("Consolas", 10), bg="#f0f0f0", fg="black")
         self.status_text.pack(pady=5, padx=20, fill="x")
         self.log_message(f"Sistem pornit. Monitorizare activă pentru {self.current_user.nume}.")
@@ -151,6 +159,8 @@ class TrafficGUI:
                 command=self.send_accident_from_map,
                 highlightbackground="#0099ff", highlightthickness=0).pack(pady=10)
         tk.Button(self.root, text="Delogare", command=self.handle_logout, highlightbackground="#0099ff").pack()
+
+        self.start_auto_speed_update()
 
     def handle_logout(self):
         # 1. Închidem socket-ul
@@ -215,21 +225,22 @@ class TrafficGUI:
             elif msg_type == "signup_response":
                 self._handle_signup_response(data)
 
-            elif msg_type == "broadcast_accident":
+            elif msg_type == "accident":
                 nume = data.get("nume")
                 detalii = data.get("mesaj")
                 locatie = data.get("locatie")
                 sender = data.get("sender")
                 
                 # 1. Adăugăm în log-ul de pe ecran
-                self.root.after(0, lambda: self.log_message(f"⚠️ ACCIDENT: {detalii}, de userul {nume} cu nr. {sender}"))
+                self.root.after(0, lambda: self.log_message(f"⚠️ ACCIDENT {detalii} de userul {nume} cu nr. {sender}."))
                 
                 # 2. Punem și markerul pe hartă (dacă avem coordonatele)
                 lat = data.get("lat")
                 lng = data.get("long")
                 if lat and lng:
                     self.root.after(0, lambda: self.map_widget.set_marker(lat, lng, text=f"Accident: {locatie}"))
-
+            elif msg_type == "speed_limit_advisory":
+                self.handle_speed_limit_advisory(data)
             else:    
                 print(f"Tip mesaj necunoscut: {msg_type}")
 
@@ -245,6 +256,32 @@ class TrafficGUI:
             self.status_text.insert(tk.END, f"[{timestamp}] {message}\n")
             self.status_text.see(tk.END) # Scroll automat la final
             self.status_text.configure(state='disabled')
+
+    def start_auto_speed_update(self):
+        if self.net and self.net.is_running:
+            lat, lng = self.map_widget.get_position() # Coordonatele de sub "X"
+            viteza = self.speed_slider.get()
+            
+            data = {
+                "type": "speed_update",
+                "lat": lat,
+                "long": lng,
+                "value": viteza
+            }
+            self.net.send_json(data)
+        
+        # Reapelam funcția peste 60 secunde
+        self.root.after(60000, self.start_auto_speed_update)
+
+    def handle_speed_limit_advisory(self, data):
+        limita = data.get("limit")
+        motiv = data.get("reason")
+        
+        # Verificăm dacă limita s-a schimbat față de ultima dată pentru a loga o singură dată
+        if not hasattr(self, 'current_limit') or self.current_limit != limita:
+            self.current_limit = limita
+            msg = f"ℹ️ LIMITĂ NOUĂ: {limita} km/h - {motiv}"
+            self.root.after(0, lambda: self.log_message(msg))
 
     def _handle_login_response(self, data):
         if data.get("status") == "success":

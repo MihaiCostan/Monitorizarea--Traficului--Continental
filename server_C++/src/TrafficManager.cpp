@@ -13,15 +13,15 @@ void TrafficManager::proceseaza_mesaj(int client_socket,
         {
             if (db.add_user(j))
             {
-                trimite_raspuns(client_socket, {{"type", "signup_response"}, // Adăugat pentru sincronizare
-                                                {"status", "success"},       // Schimbat din "ok" în "success" pentru a bate cu Python
-                                                {"msg", "Cont creat cu succes!"}});
+                broadcast_single_client(client_socket, {{"type", "signup_response"}, // Adăugat pentru sincronizare
+                                                        {"status", "success"},       // Schimbat din "ok" în "success" pentru a bate cu Python
+                                                        {"msg", "Cont creat cu succes!"}});
             }
             else
             {
-                trimite_raspuns(client_socket, {{"type", "signup_response"},
-                                                {"status", "error"},
-                                                {"msg", "Eroare: Email-ul există deja!"}});
+                broadcast_single_client(client_socket, {{"type", "signup_response"},
+                                                        {"status", "error"},
+                                                        {"msg", "Eroare: Email-ul există deja!"}});
             }
         }
         else if (type == "login")
@@ -43,11 +43,11 @@ void TrafficManager::proceseaza_mesaj(int client_socket,
                 participanti[client_socket] = c;
 
                 std::cout << "[SERVER]: Client details: [socket: " << client_socket << "], [name: " << c.nume << "], [email: " << c.email << "]\n";
-                trimite_raspuns(client_socket, auth);
+                broadcast_single_client(client_socket, auth);
             }
             else
             {
-                trimite_raspuns(client_socket, {{"type", "login_response"}, {"status", "fail"}});
+                broadcast_single_client(client_socket, {{"type", "login_response"}, {"status", "fail"}});
             }
         }
         else if (type == "speed_update")
@@ -69,31 +69,24 @@ void TrafficManager::handle_speed_update(int socket, const json &j)
 {
     if (participanti.count(socket))
     {
+        double lat = j["lat"];
+        double lng = j["long"];
         participanti[socket].ultima_viteza = j["value"];
-        std::cout << "[SPEED] " << participanti[socket].numar_masina << ": "
-                  << j["value"] << " km/h\n";
 
-        // Logică cerută: Dacă viteza e prea mică, notificăm ceilalți de un posibil
-        // blocaj
-        if (j["value"] < 10)
-        {
-            json alert = {{"type", "info"},
-                          {"msg", "Trafic intens detectat in zona!"}};
-            // Aici s-ar putea face un broadcast selectiv
-        }
+        // Calculăm limita de viteză curentă bazată pe locație
+        json advisory = db.get_speed_limit_at_location(lat, lng);
+        advisory["type"] = "speed_limit_advisory";
+
+        // Trimitem răspunsul DOAR clientului care a făcut update-ul
+        broadcast_single_client(socket, advisory);
     }
 }
 
 void TrafficManager::handle_accident(int socket, const json &j,
                                      const std::vector<int> &toti_clientii)
 {
-    if (participanti.count(socket))
-    {
-        std::cout << "[ACCIDENT] Raportat de " << participanti[socket].numar_masina << '\n';
-    }
-
     json update = {
-        {"type", "broadcast_accident"},
+        {"type", "accident"},
         {"locatie", j["locatie"]},
         {"nume", participanti[socket].nume},
         {"mesaj", j["mesaj"]}, // Sincronizat cu Python
@@ -104,7 +97,7 @@ void TrafficManager::handle_accident(int socket, const json &j,
     broadcast_all_clients(toti_clientii, update);
 }
 
-void TrafficManager::trimite_raspuns(int socket, const json &j)
+void TrafficManager::broadcast_single_client(int socket, const json &j)
 {
     std::string s = j.dump() + "\n";
     send(socket, s.c_str(), s.length(), 0);
@@ -114,7 +107,7 @@ void TrafficManager::broadcast_all_clients(const std::vector<int> &receptori, co
 {
     for (int socket : receptori)
     {
-        trimite_raspuns(socket, j);
+        broadcast_single_client(socket, j);
     }
 }
 
@@ -124,7 +117,7 @@ void TrafficManager::broadcast_except_sender(const std::vector<int> &receptori, 
     {
         if (socket_client != sender_socket)
         {
-            trimite_raspuns(socket_client, j);
+            broadcast_single_client(socket_client, j);
         }
     }
 }
