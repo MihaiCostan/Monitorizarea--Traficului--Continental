@@ -27,27 +27,33 @@ void TrafficManager::proceseaza_mesaj(int client_socket,
         else if (type == "login")
         {
             json auth = db.authenticate_user(j["email"], j["password"]);
-
-            // Forțăm type-ul să fie cel așteptat de Python
             auth["type"] = "login_response";
 
             if (auth["status"] == "success")
             {
+                // salvez clientul in RAM
+                Client c;
+                c.socket_fd = client_socket;
+                c.nume = auth["nume"];
+                c.masina = auth["masina"];
+                c.numar_masina = auth["numar_masina"];
+                c.user_id = auth["user_id"];
+
+                participanti[client_socket] = c;
                 trimite_raspuns(client_socket, auth);
             }
             else
             {
-                trimite_raspuns(client_socket, {{"type", "login_response"},
-                                                {"status", "fail"}});
+                trimite_raspuns(client_socket, {{"type", "login_response"}, {"status", "fail"}});
             }
         }
         else if (type == "speed_update")
         {
             handle_speed_update(client_socket, j);
         }
-        else if (type == "incident")
+        else if (type == "accident")
         {
-            handle_incident(client_socket, j, toti_clientii);
+            handle_accident(client_socket, j, toti_clientii);
         }
     }
     catch (std::exception &e)
@@ -75,16 +81,21 @@ void TrafficManager::handle_speed_update(int socket, const json &j)
     }
 }
 
-void TrafficManager::handle_incident(int socket, const json &j,
+void TrafficManager::handle_accident(int socket, const json &j,
                                      const std::vector<int> &toti_clientii)
 {
-    // Cerință: Un client anunță un accident, serverul trimite la toți
-    std::cout << "[INCIDENT] Raportat de " << participanti[socket].numar_masina
-              << '\n';
+    if (participanti.count(socket))
+    {
+        std::cout << "[ACCIDENT] Raportat de " << participanti[socket].numar_masina << '\n';
+    }
 
-    json update = {{"type", "broadcast_incident"},
-                   {"locatie", j["locatie"]},
-                   {"detalii", j["mesaj"]}};
+    json update = {
+        {"type", "broadcast_accident"},
+        {"locatie", j["locatie"]},
+        {"mesaj", j["mesaj"]}, // Sincronizat cu Python
+        {"lat", j["lat"]},     // Adăugat pentru hartă
+        {"long", j["long"]}    // Adăugat pentru hartă
+    };
 
     broadcast(toti_clientii, update);
 }

@@ -1,7 +1,8 @@
 import json
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
 from models import UserProfile
+import tkintermapview
 
 class TrafficGUI:
     def __init__(self, root, network_manager):
@@ -124,6 +125,51 @@ class TrafficGUI:
         else:
             messagebox.showerror("Eroare", "Serverul nu răspunde!")
 
+    def show_main_screen(self):
+        self.clear_screen()
+        self.clear_screen()
+        self.root.geometry("1280x720") # Mărim fereastra pentru hartă
+
+        # Creăm widget-ul de hartă
+        self.map_widget = tkintermapview.TkinterMapView(self.root, width=800, height=500, corner_radius=0)
+        self.map_widget.pack(expand=True)
+
+        #punct de referinta centru
+        self.reticle = tk.Label(self.map_widget, text="X", font=("Arial", 3), fg="red", bg="red", padx=2)
+        # relx=0.5 și rely=0.5 îl vor ține mereu la mijloc, indiferent de mărimea ferestrei
+        self.reticle.place(relx=0.5, rely=0.5, anchor="center")
+
+        # Setăm poziția inițială (ex: Iași sau București)
+        self.map_widget.set_position(47.1585, 27.6014) # Coordonate Iași
+        self.map_widget.set_zoom(15)
+
+        # Buton pentru raportare accident la locația curentă
+        tk.Button(self.root, text="Raportează Accident Aici", 
+                command=self.send_accident_from_map,
+                highlightbackground="#0099ff", highlightthickness=0, bg="#ffffff").pack(pady=10)
+
+    def send_accident_from_map(self):
+        # get_position() ne dă (lat, lng) pentru centrul hărții, fix sub "+" nostru
+        lat, lng = self.map_widget.get_position()
+
+        nume_strada = simpledialog.askstring("Raportare Accident", 
+                                         "Pe ce stradă se află accidentul?")
+        if nume_strada:
+            accident_data = {
+                "type": "accident",
+                "email": self.current_user.email,
+                "lat": lat,
+                "long": lng,
+                "locatie": nume_strada, # Numele introdus de utilizator
+                "mesaj": f"Accident raportat pe {nume_strada}"
+            }
+            
+            # 3. Trimitem la server
+            self.net.send_json(accident_data)
+            messagebox.showinfo("Succes", f"Accidentul de pe {nume_strada} a fost raportat!")
+        else:
+            # Dacă a dat Cancel, nu trimitem nimic
+            print("Raportare anulată de utilizator.")
 
     def exit_button(self):
         if messagebox.askyesno("Ieșire", "Sigur vrei să părăsești aplicația?"):
@@ -150,9 +196,9 @@ class TrafficGUI:
                 self._handle_login_response(data)
             elif msg_type == "signup_response":
                 self._handle_signup_response(data)
-            elif msg_type == "broadcast_incident":
+            elif msg_type == "broadcast_accident":
                 # Exemplu pentru viitor (notificări de accidente)
-                self.root.after(0, lambda: messagebox.showinfo("ALERTĂ TRAFIC", data.get("detalii")))
+                self.root.after(0, lambda: messagebox.showinfo("ALERTĂ TRAFIC", data.get("mesaj")))
             else:
                 print(f"Tip mesaj necunoscut: {msg_type}")
 
@@ -189,10 +235,6 @@ class TrafficGUI:
     def _go_to_start_screen_after_error(self):
         messagebox.showerror("Conexiune Pierdută", "Serverul s-a oprit sau conexiunea a fost întreruptă.")
         self.setup_start_screen() # Revenim la pagina principala
-
-    def show_main_screen(self):
-        self.clear_screen()
-        pass
 
     def clear_screen(self):
         for widget in self.root.winfo_children():
