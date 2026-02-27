@@ -18,6 +18,7 @@ struct Client
     std::string nume;
     std::string masina;
     std::string numar_masina;
+    std::string email;
     int ultima_viteza = 0;
 
     bool vrea_vreme = false;

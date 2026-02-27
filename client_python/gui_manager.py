@@ -14,7 +14,7 @@ class TrafficGUI:
         self.net.on_disconnection = self.handle_disconnection
         
         self.root.title("Monitorizare Trafic - Continental")
-        self.root.geometry("400x500")
+        self.root.geometry("600x700")
         self.root.configure(bg="#0099ff")
 
         self.setup_start_screen()
@@ -102,7 +102,6 @@ class TrafficGUI:
         tk.Button(self.root, text="Intră în cont", command=self.handle_login_auth, highlightbackground="#0099ff").pack()
         tk.Button(self.root, text="Înapoi", command=self.setup_start_screen, highlightbackground="#0099ff").pack()
 
-
     def handle_login_auth(self):
         # Luăm datele introduse de utilizator
         email = self.entry_email.get()
@@ -119,19 +118,17 @@ class TrafficGUI:
             "password": password
         }
 
-        # Trimitem prin NetworkManager
+        # Trimitem prin network_manager
         if self.net.connect():
             self.net.send_json(auth_packet)
         else:
             messagebox.showerror("Eroare", "Serverul nu răspunde!")
 
-    def show_main_screen(self):
+    def setup_main_screen(self):
         self.clear_screen()
-        self.clear_screen()
-        self.root.geometry("1280x720") # Mărim fereastra pentru hartă
 
         # Creăm widget-ul de hartă
-        self.map_widget = tkintermapview.TkinterMapView(self.root, width=800, height=500, corner_radius=0)
+        self.map_widget = tkintermapview.TkinterMapView(self.root, width=500, height=600, corner_radius=0)
         self.map_widget.pack(expand=True)
 
         #punct de referinta centru
@@ -146,7 +143,21 @@ class TrafficGUI:
         # Buton pentru raportare accident la locația curentă
         tk.Button(self.root, text="Raportează Accident Aici", 
                 command=self.send_accident_from_map,
-                highlightbackground="#0099ff", highlightthickness=0, bg="#ffffff").pack(pady=10)
+                highlightbackground="#0099ff", highlightthickness=0).pack(pady=10)
+        tk.Button(self.root, text="Delogare", command=self.handle_logout, highlightbackground="#0099ff").pack()
+
+    def handle_logout(self):
+        # 1. Închidem socket-ul
+        if self.net:
+            self.net.on_disconnection = None
+            self.net.disconnect()
+        
+        # 2. Resetăm obiectul UserProfile (să nu rămână datele vechi în memorie)
+        self.current_user.clear()
+        
+        # 3. Revenim la ecranul de start
+        self.setup_start_screen()
+        messagebox.showinfo("Logout", "Te-ai delogat cu succes!")
 
     def send_accident_from_map(self):
         # get_position() ne dă (lat, lng) pentru centrul hărții, fix sub "+" nostru
@@ -217,7 +228,7 @@ class TrafficGUI:
             self.current_user.nr_auto = data.get("numar_masina")
 
             self.root.after(0, lambda: messagebox.showinfo("Succes", f"Salut, {self.current_user.nume}!"))
-            self.root.after(0, self.show_main_screen)
+            self.root.after(0, self.setup_main_screen)
         else:
             self.root.after(0, lambda: messagebox.showerror("Eroare", "Email sau parolă incorectă!"))
 

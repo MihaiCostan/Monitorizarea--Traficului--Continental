@@ -38,8 +38,11 @@ void TrafficManager::proceseaza_mesaj(int client_socket,
                 c.masina = auth["masina"];
                 c.numar_masina = auth["numar_masina"];
                 c.user_id = auth["user_id"];
+                c.email = auth["email"];
 
                 participanti[client_socket] = c;
+
+                std::cout << "[SERVER]: Client details: [socket: " << client_socket << "], [name: " << c.nume << "], [email: " << c.email << "]\n";
                 trimite_raspuns(client_socket, auth);
             }
             else

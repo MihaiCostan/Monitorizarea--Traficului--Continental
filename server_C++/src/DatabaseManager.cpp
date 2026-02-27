@@ -67,6 +67,7 @@ json DatabaseManager::authenticate_user(const std::string &email,
         if (sqlite3_step(stmt) == SQLITE_ROW)
         {
             result["status"] = "success";
+            result["email"] = (const char *)sqlite3_column_text(stmt, 0);
             result["nume"] = (const char *)sqlite3_column_text(stmt, 2);
             result["masina"] = (const char *)sqlite3_column_text(stmt, 3);
             result["numar_masina"] = (const char *)sqlite3_column_text(stmt, 4);

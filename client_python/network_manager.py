@@ -51,3 +51,15 @@ class NetworkManager:
                 if self.on_disconnection:
                     self.on_disconnection()
                 break
+            
+    # În network_manager.py, în interiorul clasei NetworkManager
+    def disconnect(self):
+        self.is_running = False  # Oprește loop-ul _receive_loop
+        if self.socket:
+            try:
+                self.socket.close()
+                print("[NET] Socket închis manual.")
+            except Exception as e:
+                print(f"[NET] Eroare la închidere: {e}")
+            finally:
+                self.socket = None
