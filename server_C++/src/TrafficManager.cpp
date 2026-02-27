@@ -95,12 +95,13 @@ void TrafficManager::handle_accident(int socket, const json &j,
     json update = {
         {"type", "broadcast_accident"},
         {"locatie", j["locatie"]},
+        {"nume", participanti[socket].nume},
         {"mesaj", j["mesaj"]}, // Sincronizat cu Python
         {"lat", j["lat"]},     // Adăugat pentru hartă
-        {"long", j["long"]}    // Adăugat pentru hartă
-    };
+        {"long", j["long"]},   // Adăugat pentru hartă
+        {"sender", participanti[socket].numar_masina}};
 
-    broadcast(toti_clientii, update);
+    broadcast_all_clients(toti_clientii, update);
 }
 
 void TrafficManager::trimite_raspuns(int socket, const json &j)
@@ -109,10 +110,21 @@ void TrafficManager::trimite_raspuns(int socket, const json &j)
     send(socket, s.c_str(), s.length(), 0);
 }
 
-void TrafficManager::broadcast(const std::vector<int> &receptori, const json &j)
+void TrafficManager::broadcast_all_clients(const std::vector<int> &receptori, const json &j)
 {
     for (int socket : receptori)
     {
         trimite_raspuns(socket, j);
+    }
+}
+
+void TrafficManager::broadcast_except_sender(const std::vector<int> &receptori, const json &j, int sender_socket)
+{
+    for (int socket_client : receptori)
+    {
+        if (socket_client != sender_socket)
+        {
+            trimite_raspuns(socket_client, j);
+        }
     }
 }

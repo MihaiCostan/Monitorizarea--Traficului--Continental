@@ -45,7 +45,8 @@ private:
 
     // Helper pentru trimiterea de mesaje JSON
     void trimite_raspuns(int socket, const json &j);
-    void broadcast(const std::vector<int> &receptori, const json &j);
+    void broadcast_all_clients(const std::vector<int> &receptori, const json &j);
+    void broadcast_except_sender(const std::vector<int> &receptori, const json &j, int sender_socket);
 
     // Validator login
     void handle_login_auth(int socket, const json &j);

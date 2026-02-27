@@ -1,7 +1,8 @@
 import json
 import tkinter as tk
-from tkinter import messagebox, simpledialog
+from tkinter import messagebox, simpledialog, scrolledtext
 from models import UserProfile
+from datetime import datetime
 import tkintermapview
 
 class TrafficGUI:
@@ -128,7 +129,7 @@ class TrafficGUI:
         self.clear_screen()
 
         # Creăm widget-ul de hartă
-        self.map_widget = tkintermapview.TkinterMapView(self.root, width=500, height=600, corner_radius=0)
+        self.map_widget = tkintermapview.TkinterMapView(self.root, width=400, height=400, corner_radius=0)
         self.map_widget.pack(expand=True)
 
         #punct de referinta centru
@@ -139,6 +140,11 @@ class TrafficGUI:
         # Setăm poziția inițială (ex: Iași sau București)
         self.map_widget.set_position(47.1585, 27.6014) # Coordonate Iași
         self.map_widget.set_zoom(15)
+
+        #Loguri pentru accidente / eventuri
+        self.status_text = scrolledtext.ScrolledText(self.root, height=8, state='disabled', font=("Consolas", 10), bg="#f0f0f0", fg="black")
+        self.status_text.pack(pady=5, padx=20, fill="x")
+        self.log_message(f"Sistem pornit. Monitorizare activă pentru {self.current_user.nume}.")
 
         # Buton pentru raportare accident la locația curentă
         tk.Button(self.root, text="Raportează Accident Aici", 
@@ -172,7 +178,7 @@ class TrafficGUI:
                 "lat": lat,
                 "long": lng,
                 "locatie": nume_strada, # Numele introdus de utilizator
-                "mesaj": f"Accident raportat pe {nume_strada}"
+                "mesaj": f"Raportat pe {nume_strada}"
             }
             
             # 3. Trimitem la server
@@ -205,12 +211,26 @@ class TrafficGUI:
             # Rutăm mesajul către funcția potrivită în funcție de "type"
             if msg_type == "login_response":
                 self._handle_login_response(data)
+                
             elif msg_type == "signup_response":
                 self._handle_signup_response(data)
+
             elif msg_type == "broadcast_accident":
-                # Exemplu pentru viitor (notificări de accidente)
-                self.root.after(0, lambda: messagebox.showinfo("ALERTĂ TRAFIC", data.get("mesaj")))
-            else:
+                nume = data.get("nume")
+                detalii = data.get("mesaj")
+                locatie = data.get("locatie")
+                sender = data.get("sender")
+                
+                # 1. Adăugăm în log-ul de pe ecran
+                self.root.after(0, lambda: self.log_message(f"⚠️ ACCIDENT: {detalii}, de userul {nume} cu nr. {sender}"))
+                
+                # 2. Punem și markerul pe hartă (dacă avem coordonatele)
+                lat = data.get("lat")
+                lng = data.get("long")
+                if lat and lng:
+                    self.root.after(0, lambda: self.map_widget.set_marker(lat, lng, text=f"Accident: {locatie}"))
+
+            else:    
                 print(f"Tip mesaj necunoscut: {msg_type}")
 
         except json.JSONDecodeError:
@@ -218,6 +238,13 @@ class TrafficGUI:
         except Exception as e:
             print(f"Eroare generală în display_message: {e}")
 
+    def log_message(self, message):
+        if hasattr(self, 'status_text') and self.status_text.winfo_exists():
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.status_text.configure(state='normal')
+            self.status_text.insert(tk.END, f"[{timestamp}] {message}\n")
+            self.status_text.see(tk.END) # Scroll automat la final
+            self.status_text.configure(state='disabled')
 
     def _handle_login_response(self, data):
         if data.get("status") == "success":
