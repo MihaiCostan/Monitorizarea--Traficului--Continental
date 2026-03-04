@@ -160,6 +160,7 @@ class TrafficGUI:
                 highlightbackground="#0099ff", highlightthickness=0).pack(pady=10)
         tk.Button(self.root, text="Delogare", command=self.handle_logout, highlightbackground="#0099ff").pack()
 
+        self.start_location_polling()
         self.start_auto_speed_update()
 
     def handle_logout(self):
@@ -198,20 +199,6 @@ class TrafficGUI:
             # Dacă a dat Cancel, nu trimitem nimic
             print("Raportare anulată de utilizator.")
 
-    def exit_button(self):
-        if messagebox.askyesno("Ieșire", "Sigur vrei să părăsești aplicația?"):
-            # 1. Oprim thread-ul de recepție și închidem socket-ul
-            if self.net:
-                self.net.is_running = False
-                if self.net.socket:
-                    try:
-                        self.net.socket.close()
-                    except:
-                        pass # Ignorăm dacă socket-ul era deja închis
-            
-            # 2. Închidem interfața grafică
-            self.root.destroy()
-
     def display_message(self, raw_data):
         try:
             # Transformăm string-ul brut în obiect Python (dicționar)
@@ -239,8 +226,10 @@ class TrafficGUI:
                 lng = data.get("long")
                 if lat and lng:
                     self.root.after(0, lambda: self.map_widget.set_marker(lat, lng, text=f"Accident: {locatie}"))
-            elif msg_type == "speed_limit_advisory":
+            elif msg_type == "zone_limit_update":
                 self.handle_speed_limit_advisory(data)
+            elif msg_type == "actual_speed":
+                self.handle_actual_speed_confirmation(data)
             elif msg_type == "initial_accidents_sync":
                 accidents_list = data.get("data", [])
                 # Folosim o mică întârziere pentru a fi siguri că ecranul principal s-a încărcat
@@ -253,13 +242,34 @@ class TrafficGUI:
         except Exception as e:
             print(f"Eroare generală în display_message: {e}")
 
-    def log_message(self, message):
+    def log_message(self, message, color="black"):
         if hasattr(self, 'status_text') and self.status_text.winfo_exists():
             timestamp = datetime.now().strftime("%H:%M:%S")
             self.status_text.configure(state='normal')
-            self.status_text.insert(tk.END, f"[{timestamp}] {message}\n")
+
+            self.status_text.tag_config("red", foreground="red")
+            self.status_text.tag_config("green", foreground="green")
+            self.status_text.tag_config("black", foreground="black")
+
+            self.status_text.insert(tk.END, f"[{timestamp}] {message}\n", color)
             self.status_text.see(tk.END) # Scroll automat la final
             self.status_text.configure(state='disabled')
+
+    #update locatie o data pe secunda
+    def start_location_polling(self):
+        if self.net and self.net.is_running:
+            lat, lng = self.map_widget.get_position()
+
+            # Trimitem un mesaj nou, care NU conține viteza, doar locația
+            data = {
+                "type": "get_limit", # Tip nou de mesaj
+                "lat": lat,
+                "long": lng
+            }
+            self.net.send_json(data)
+        
+        # Verificăm locația foarte des pentru reactivitate pe hartă
+        self.root.after(1000, self.start_location_polling)
 
     def start_auto_speed_update(self):
         if self.net and self.net.is_running:
@@ -267,29 +277,37 @@ class TrafficGUI:
             viteza = self.speed_slider.get()
             
             data = {
-                "type": "speed_update",
+                "type": "actual_speed",
                 "lat": lat,
                 "long": lng,
                 "value": viteza
             }
             self.net.send_json(data)
 
-            msg = f"ℹ️ Viteza actuala trimisa catre server: {viteza} km/h."
-            self.root.after(0, lambda: self.log_message(msg))
-        
         # Reapelam funcția peste 60 secunde
         self.root.after(15000, self.start_auto_speed_update)
 
     def handle_speed_limit_advisory(self, data):
-        limita = data.get("limit")
+        limita_server = data.get("limit")
         motiv = data.get("reason")
         
         # Verificăm dacă limita s-a schimbat față de ultima dată pentru a loga o singură dată
-        if not hasattr(self, 'current_limit') or self.current_limit != limita:
-            self.current_limit = limita
-            msg = f"ℹ️ LIMITĂ NOUĂ: {limita} km/h - {motiv}"
+        if not hasattr(self, 'current_limit') or self.current_limit != limita_server:
+            self.current_limit = limita_server
+            msg = f"ℹ️ LIMITĂ NOUĂ: {limita_server} km/h - {motiv}"
             self.root.after(0, lambda: self.log_message(msg))
 
+    def handle_actual_speed_confirmation(self, data):
+        """Confirmă raportul oficial de viteză trimis la 15 secunde."""
+        limita = data.get("limit")
+        viteza_mea = self.speed_slider.get()
+
+        # Aici afișăm log-urile colorate (verde/roșu)
+        if viteza_mea > limita:
+            self.log_message(f"⚠️ RAPORT: Depășești limita de {limita} km/h! ({viteza_mea} km/h)", "red")
+        else:
+            self.log_message(f"✅ RAPORT: Viteza ta ({viteza_mea} km/h) este regulamentară.", "green")
+        
     def load_initial_markers(self, accidents):
         for acc in accidents:
             lat = acc.get("lat")
@@ -326,6 +344,20 @@ class TrafficGUI:
     def _go_to_start_screen_after_error(self):
         messagebox.showerror("Conexiune Pierdută", "Serverul s-a oprit sau conexiunea a fost întreruptă.")
         self.setup_start_screen() # Revenim la pagina principala
+
+    def exit_button(self):
+        if messagebox.askyesno("Ieșire", "Sigur vrei să părăsești aplicația?"):
+            # 1. Oprim thread-ul de recepție și închidem socket-ul
+            if self.net:
+                self.net.is_running = False
+                if self.net.socket:
+                    try:
+                        self.net.socket.close()
+                    except:
+                        pass # Ignorăm dacă socket-ul era deja închis
+            
+            # 2. Închidem interfața grafică
+            self.root.destroy()
 
     def clear_screen(self):
         for widget in self.root.winfo_children():

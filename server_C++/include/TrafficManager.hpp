@@ -39,7 +39,7 @@ public:
 
 private:
     void handle_login(int socket, const json &j);
-    void handle_speed_update(int socket, const json &j);
+    void handle_actual_speed_update(int socket, const json &j);
     void handle_accident(int socket, const json &j,
                          const std::vector<int> &toti_clientii);
 

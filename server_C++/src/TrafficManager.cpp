@@ -56,9 +56,20 @@ void TrafficManager::proceseaza_mesaj(int client_socket,
                 broadcast_single_client(client_socket, {{"type", "login_response"}, {"status", "fail"}});
             }
         }
-        else if (type == "speed_update")
+        else if (type == "get_limit")
         {
-            handle_speed_update(client_socket, j);
+            double lat = j["lat"];
+            double lng = j["long"];
+
+            // Cerem limita din DB fără a modifica datele participantului
+            json advisory = db.get_speed_limit_at_location(lat, lng);
+            advisory["type"] = "zone_limit_update";
+
+            broadcast_single_client(client_socket, advisory);
+        }
+        else if (type == "actual_speed")
+        {
+            handle_actual_speed_update(client_socket, j);
         }
         else if (type == "accident")
         {
@@ -71,7 +82,7 @@ void TrafficManager::proceseaza_mesaj(int client_socket,
     }
 }
 
-void TrafficManager::handle_speed_update(int socket, const json &j)
+void TrafficManager::handle_actual_speed_update(int socket, const json &j)
 {
     if (participanti.count(socket))
     {
@@ -81,7 +92,7 @@ void TrafficManager::handle_speed_update(int socket, const json &j)
 
         // Calculăm limita de viteză curentă bazată pe locație
         json advisory = db.get_speed_limit_at_location(lat, lng);
-        advisory["type"] = "speed_limit_advisory";
+        advisory["type"] = "actual_speed";
 
         // Trimitem răspunsul DOAR clientului care a făcut update-ul
         broadcast_single_client(socket, advisory);
