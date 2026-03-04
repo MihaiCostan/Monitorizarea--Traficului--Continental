@@ -21,4 +21,5 @@ public:
     bool add_accident(double lat, double lng, const std::string &strada, const std::string &detalii);
     json authenticate_user(const std::string &email, const std::string &password);
     json get_speed_limit_at_location(double lat, double lng);
+    json get_all_accidents();
 };

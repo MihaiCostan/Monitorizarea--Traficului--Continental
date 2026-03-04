@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <atomic>
 
 #include "TrafficManager.hpp"
 
@@ -26,5 +27,6 @@ private:
 
 public:
     TCPServer(int port, TrafficManager &manager);
+    ~TCPServer();
     void run();
 };

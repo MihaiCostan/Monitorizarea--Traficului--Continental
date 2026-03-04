@@ -1,10 +1,22 @@
 #include <iostream>
+#include <atomic>
+#include <csignal>
 
 #include "TCPServer.hpp"
 #include "TrafficManager.hpp"
 
+std::atomic<bool> keep_running(true);
+
+void signal_handler(int signal)
+{
+    std::cout << "\n[SYSTEM] Semnal de oprire primit (" << signal << "). Închidem serverul...\n";
+    keep_running = false;
+}
+
 int main()
 {
+    std::signal(SIGINT, signal_handler);
+
     try
     {
         // business logic (cel care procesează mesajele)

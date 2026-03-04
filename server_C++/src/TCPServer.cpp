@@ -1,4 +1,5 @@
 #include "TCPServer.hpp"
+extern std::atomic<bool> keep_running;
 
 TCPServer::TCPServer(int port, TrafficManager &manager) : manager(manager)
 {
@@ -39,17 +40,40 @@ TCPServer::TCPServer(int port, TrafficManager &manager) : manager(manager)
     printf("[SERVER]: Server started on port %d\n", port);
 }
 
+TCPServer::~TCPServer()
+{
+    printf("[SERVER]: Închidere socket-uri active...\n");
+
+    // 1. Închidem toate conexiunile clienților
+    for (int sd : clients_sockets)
+    {
+        if (sd > 0)
+        {
+            close(sd);
+        }
+    }
+    clients_sockets.clear();
+
+    // 2. Închidem socket-ul principal al serverului
+    if (server_fd > 0)
+    {
+        close(server_fd);
+        printf("[SERVER]: Socket principal (fd: %d) închis.\n", server_fd);
+    }
+}
+
 void TCPServer::run()
 {
     printf("[SERVER]: Server waiting for connections...\n");
     fd_set readfds;
+    struct timeval timeout;
     int sd, max_sd, activity, new_socket;
     char buffer[BUFFER_SIZE];
 
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
 
-    while (true)
+    while (keep_running)
     {
         FD_ZERO(&readfds);
         FD_SET(server_fd, &readfds);
@@ -63,12 +87,17 @@ void TCPServer::run()
                 max_sd = client_sd;
         }
 
-        activity = select(max_sd + 1, &readfds, NULL, NULL, NULL);
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
+        activity = select(max_sd + 1, &readfds, NULL, NULL, &timeout);
 
         if ((activity < 0) && (errno != EINTR))
         {
             fprintf(stderr, "Select error");
         }
+
+        if (!keep_running)
+            break;
 
         // a. conexiune noua
         if (FD_ISSET(server_fd, &readfds))
@@ -108,4 +137,5 @@ void TCPServer::run()
             ++it;
         }
     }
+    std::cout << ("[SERVER]: Oprire gracefully detectată. Eliberăm resursele...\n");
 }

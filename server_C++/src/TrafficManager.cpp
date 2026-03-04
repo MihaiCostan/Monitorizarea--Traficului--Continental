@@ -44,6 +44,12 @@ void TrafficManager::proceseaza_mesaj(int client_socket,
 
                 std::cout << "[SERVER]: Client details: [socket: " << client_socket << "], [name: " << c.nume << "], [email: " << c.email << "]\n";
                 broadcast_single_client(client_socket, auth);
+
+                // pentru incarcarea markerelor de la accidentele actuale de pe server
+                json initial_accidents = {
+                    {"type", "initial_accidents_sync"},
+                    {"data", db.get_all_accidents()}};
+                broadcast_single_client(client_socket, initial_accidents);
             }
             else
             {
@@ -85,16 +91,21 @@ void TrafficManager::handle_speed_update(int socket, const json &j)
 void TrafficManager::handle_accident(int socket, const json &j,
                                      const std::vector<int> &toti_clientii)
 {
-    json update = {
-        {"type", "accident"},
-        {"locatie", j["locatie"]},
-        {"nume", participanti[socket].nume},
-        {"mesaj", j["mesaj"]}, // Sincronizat cu Python
-        {"lat", j["lat"]},     // Adăugat pentru hartă
-        {"long", j["long"]},   // Adăugat pentru hartă
-        {"sender", participanti[socket].numar_masina}};
+    if (db.add_accident(j["lat"], j["long"], j["locatie"], j["mesaj"]))
+    {
+        json update = {
+            {"type", "accident"},
+            {"locatie", j["locatie"]},
+            {"nume", participanti[socket].nume},
+            {"mesaj", j["mesaj"]}, // Sincronizat cu Python
+            {"lat", j["lat"]},     // Adăugat pentru hartă
+            {"long", j["long"]},   // Adăugat pentru hartă
+            {"sender", participanti[socket].numar_masina}};
 
-    broadcast_all_clients(toti_clientii, update);
+        broadcast_all_clients(toti_clientii, update);
+    }
+    else
+        std::cout << "Eroare la inserarea accidentului in baza de date!\n";
 }
 
 void TrafficManager::broadcast_single_client(int socket, const json &j)

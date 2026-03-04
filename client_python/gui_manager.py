@@ -241,6 +241,10 @@ class TrafficGUI:
                     self.root.after(0, lambda: self.map_widget.set_marker(lat, lng, text=f"Accident: {locatie}"))
             elif msg_type == "speed_limit_advisory":
                 self.handle_speed_limit_advisory(data)
+            elif msg_type == "initial_accidents_sync":
+                accidents_list = data.get("data", [])
+                # Folosim o mică întârziere pentru a fi siguri că ecranul principal s-a încărcat
+                self.root.after(500, lambda: self.load_initial_markers(accidents_list))
             else:    
                 print(f"Tip mesaj necunoscut: {msg_type}")
 
@@ -269,9 +273,12 @@ class TrafficGUI:
                 "value": viteza
             }
             self.net.send_json(data)
+
+            msg = f"ℹ️ Viteza actuala trimisa catre server: {viteza} km/h."
+            self.root.after(0, lambda: self.log_message(msg))
         
         # Reapelam funcția peste 60 secunde
-        self.root.after(60000, self.start_auto_speed_update)
+        self.root.after(15000, self.start_auto_speed_update)
 
     def handle_speed_limit_advisory(self, data):
         limita = data.get("limit")
@@ -282,6 +289,15 @@ class TrafficGUI:
             self.current_limit = limita
             msg = f"ℹ️ LIMITĂ NOUĂ: {limita} km/h - {motiv}"
             self.root.after(0, lambda: self.log_message(msg))
+
+    def load_initial_markers(self, accidents):
+        for acc in accidents:
+            lat = acc.get("lat")
+            lng = acc.get("long")
+            locatie = acc.get("locatie")
+            if lat and lng:
+                self.map_widget.set_marker(lat, lng, text=f"Accident: {locatie}")
+        self.log_message(f"🔄 Sincronizat: {len(accidents)} accidente încărcate pe hartă.")
 
     def _handle_login_response(self, data):
         if data.get("status") == "success":

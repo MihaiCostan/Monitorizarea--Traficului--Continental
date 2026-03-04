@@ -62,21 +62,19 @@ bool DatabaseManager::add_user(const json &j)
 {
     const char *sql = "INSERT INTO users VALUES (?, ?, ?, ?, ?, ?);";
     sqlite3_stmt *stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
 
-    // Legăm datele de semnele de întrebare (?)
-    sqlite3_bind_text(stmt, 1, j["email"].get<std::string>().c_str(), -1,
-                      SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 2, j["password"].get<std::string>().c_str(), -1,
-                      SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 3, j["nume"].get<std::string>().c_str(), -1,
-                      SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 4, j["masina"].get<std::string>().c_str(), -1,
-                      SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 5, j["numar_masina"].get<std::string>().c_str(), -1,
-                      SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 6, j["user_id"].get<std::string>().c_str(), -1,
-                      SQLITE_STATIC);
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) != SQLITE_OK)
+    {
+        return false;
+    }
+
+    // Folosim SQLITE_TRANSIENT pentru a forța SQLite să copieze datele
+    sqlite3_bind_text(stmt, 1, j["email"].get<std::string>().c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, j["password"].get<std::string>().c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 3, j["nume"].get<std::string>().c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 4, j["masina"].get<std::string>().c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 5, j["numar_masina"].get<std::string>().c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 6, j["user_id"].get<std::string>().c_str(), -1, SQLITE_TRANSIENT);
 
     bool success = (sqlite3_step(stmt) == SQLITE_DONE);
     sqlite3_finalize(stmt);
@@ -92,8 +90,8 @@ json DatabaseManager::authenticate_user(const std::string &email,
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
     {
-        sqlite3_bind_text(stmt, 1, email.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(stmt, 2, password.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 1, email.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 2, password.c_str(), -1, SQLITE_TRANSIENT);
 
         if (sqlite3_step(stmt) == SQLITE_ROW)
         {
@@ -123,8 +121,8 @@ bool DatabaseManager::add_accident(double lat, double lng, const std::string &st
     // "Bind" la parametri (înlocuim semnele de întrebare cu datele reale)
     sqlite3_bind_double(stmt, 1, lat);
     sqlite3_bind_double(stmt, 2, lng);
-    sqlite3_bind_text(stmt, 3, strada.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 4, detalii.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, strada.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 4, detalii.c_str(), -1, SQLITE_TRANSIENT);
 
     bool success = (sqlite3_step(stmt) == SQLITE_DONE);
     sqlite3_finalize(stmt);
@@ -175,4 +173,26 @@ json DatabaseManager::get_speed_limit_at_location(double lat, double lng)
 
     // 3. Implicit: În afara orașului
     return {{"limit", 90}, {"reason", "În afara localității"}};
+}
+
+json DatabaseManager::get_all_accidents()
+{
+    json list = json::array();
+    const char *sql = "SELECT lat, long, strada, detalii FROM accidents;";
+    sqlite3_stmt *stmt;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
+    {
+        while (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            json acc;
+            acc["lat"] = sqlite3_column_double(stmt, 0);
+            acc["long"] = sqlite3_column_double(stmt, 1);
+            acc["locatie"] = (const char *)sqlite3_column_text(stmt, 2);
+            acc["mesaj"] = (const char *)sqlite3_column_text(stmt, 3);
+            list.push_back(acc);
+        }
+    }
+    sqlite3_finalize(stmt);
+    return list;
 }
