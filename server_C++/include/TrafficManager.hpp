@@ -39,9 +39,10 @@ public:
 
 private:
     void handle_login(int socket, const json &j);
-    void handle_actual_speed_update(int socket, const json &j);
+    void handle_actual_speed_update_and_infotaiment(int socket, const json &j);
     void handle_accident(int socket, const json &j,
                          const std::vector<int> &toti_clientii);
+    void handle_update_preferences(int client_socket, json &j);
 
     // Helper pentru trimiterea de mesaje JSON
     void broadcast_single_client(int socket, const json &j);

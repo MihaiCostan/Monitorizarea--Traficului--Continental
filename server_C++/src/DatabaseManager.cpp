@@ -12,7 +12,6 @@ DatabaseManager::DatabaseManager(const std::string &db_path)
     }
 }
 
-/// DE REPARAT DESTRUCTOR (nu sterge continutul tabelei de accidente)
 DatabaseManager::~DatabaseManager()
 {
     if (db)
@@ -33,7 +32,10 @@ bool DatabaseManager::create_tables()
                         "nume TEXT, "
                         "masina TEXT, "
                         "numar_masina TEXT, "
-                        "user_id TEXT);";
+                        "user_id TEXT,"
+                        "pref_vreme INTEGER DEFAULT 0,"
+                        "pref_sport INTEGER DEFAULT 0,"
+                        "pref_peco INTEGER DEFAULT 0);";
 
     const char *cities = "CREATE TABLE IF NOT EXISTS cities ("
                          "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -52,15 +54,25 @@ bool DatabaseManager::create_tables()
                             "limita_recomandata INTEGER DEFAULT 30," // Implicit 30 km/h
                             "timestamp DATETIME DEFAULT CURRENT_TIMESTAMP);";
 
+    const char *extra_info = "CREATE TABLE IF NOT EXISTS extra_info ("
+                             "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                             "categorie TEXT, "
+                             "continut TEXT, "
+                             "valabilitate DATETIME DEFAULT CURRENT_TIMESTAMP);";
+
     char *err_msg_users = 0;
     char *err_msg_cities = 0;
     char *err_msg_accidents = 0;
-    return sqlite3_exec(db, users, 0, 0, &err_msg_users) == SQLITE_OK && sqlite3_exec(db, cities, 0, 0, &err_msg_cities) == SQLITE_OK && sqlite3_exec(db, accidents, 0, 0, &err_msg_accidents) == SQLITE_OK;
+    char *err_msg_extra_info = 0;
+    return sqlite3_exec(db, users, 0, 0, &err_msg_users) == SQLITE_OK &&
+           sqlite3_exec(db, cities, 0, 0, &err_msg_cities) == SQLITE_OK &&
+           sqlite3_exec(db, accidents, 0, 0, &err_msg_accidents) == SQLITE_OK &&
+           sqlite3_exec(db, extra_info, 0, 0, &err_msg_extra_info) == SQLITE_OK;
 }
 
 bool DatabaseManager::add_user(const json &j)
 {
-    const char *sql = "INSERT INTO users VALUES (?, ?, ?, ?, ?, ?);";
+    const char *sql = "INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
     sqlite3_stmt *stmt;
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) != SQLITE_OK)
@@ -75,6 +87,10 @@ bool DatabaseManager::add_user(const json &j)
     sqlite3_bind_text(stmt, 4, j["masina"].get<std::string>().c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 5, j["numar_masina"].get<std::string>().c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 6, j["user_id"].get<std::string>().c_str(), -1, SQLITE_TRANSIENT);
+
+    sqlite3_bind_int(stmt, 7, j["pref_vreme"].get<int>());
+    sqlite3_bind_int(stmt, 8, j["pref_sport"].get<int>());
+    sqlite3_bind_int(stmt, 9, j["pref_peco"].get<int>());
 
     bool success = (sqlite3_step(stmt) == SQLITE_DONE);
     sqlite3_finalize(stmt);
@@ -101,6 +117,9 @@ json DatabaseManager::authenticate_user(const std::string &email,
             result["masina"] = (const char *)sqlite3_column_text(stmt, 3);
             result["numar_masina"] = (const char *)sqlite3_column_text(stmt, 4);
             result["user_id"] = (const char *)sqlite3_column_text(stmt, 5);
+            result["pref_vreme"] = sqlite3_column_int(stmt, 6);
+            result["pref_sport"] = sqlite3_column_int(stmt, 7);
+            result["pref_peco"] = sqlite3_column_int(stmt, 8);
         }
     }
     sqlite3_finalize(stmt);
@@ -166,13 +185,13 @@ json DatabaseManager::get_speed_limit_at_location(double lat, double lng)
             std::string nume = (const char *)sqlite3_column_text(stmt, 0);
             int lim = sqlite3_column_int(stmt, 1);
             sqlite3_finalize(stmt);
-            return {{"limit", lim}, {"reason", "Intrare în oraș: " + nume}};
+            return {{"limit", lim}, {"reason", "Limita de viteza in oras " + nume}};
         }
     }
     sqlite3_finalize(stmt);
 
     // 3. Implicit: În afara orașului
-    return {{"limit", 90}, {"reason", "În afara localității"}};
+    return {{"limit", 90}, {"reason", "Limita de viteza in oras in afara localității"}};
 }
 
 json DatabaseManager::get_all_accidents()
@@ -195,4 +214,68 @@ json DatabaseManager::get_all_accidents()
     }
     sqlite3_finalize(stmt);
     return list;
+}
+
+bool DatabaseManager::update_user_preferences(const std::string &email, int v, int s, int p)
+{
+    const char *sql = "UPDATE users SET pref_vreme = ?, pref_sport = ?, pref_peco = ? WHERE email = ?;";
+    sqlite3_stmt *stmt;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) != SQLITE_OK)
+        return false;
+
+    sqlite3_bind_int(stmt, 1, v);
+    sqlite3_bind_int(stmt, 2, s);
+    sqlite3_bind_int(stmt, 3, p);
+    sqlite3_bind_text(stmt, 4, email.c_str(), -1, SQLITE_TRANSIENT);
+
+    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
+    sqlite3_finalize(stmt);
+    return success;
+}
+
+json DatabaseManager::get_infotaiment(const std::string &email)
+{
+    json info_list = json::array();
+
+    // 1. Aflăm preferințele utilizatorului
+    std::string sql_pref = "SELECT pref_vreme, pref_sport, pref_peco FROM users WHERE email = ?;";
+    sqlite3_stmt *stmt;
+
+    int v = 0, s = 0, p = 0;
+    if (sqlite3_prepare_v2(db, sql_pref.c_str(), -1, &stmt, 0) == SQLITE_OK)
+    {
+        sqlite3_bind_text(stmt, 1, email.c_str(), -1, SQLITE_TRANSIENT);
+        if (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            v = sqlite3_column_int(stmt, 0);
+            s = sqlite3_column_int(stmt, 1);
+            p = sqlite3_column_int(stmt, 2);
+        }
+    }
+    sqlite3_finalize(stmt);
+
+    // 2. Colectăm mesajele în funcție de preferințe
+    auto collect = [&](const std::string &cat)
+    {
+        std::string sql = "SELECT continut FROM extra_info WHERE categorie = ? ORDER BY id DESC LIMIT 1;";
+        if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) == SQLITE_OK)
+        {
+            sqlite3_bind_text(stmt, 1, cat.c_str(), -1, SQLITE_TRANSIENT);
+            if (sqlite3_step(stmt) == SQLITE_ROW)
+            {
+                info_list.push_back({{"category", cat}, {"text", (const char *)sqlite3_column_text(stmt, 0)}});
+            }
+        }
+        sqlite3_finalize(stmt);
+    };
+
+    if (v)
+        collect("VREME");
+    if (s)
+        collect("SPORT");
+    if (p)
+        collect("PECO");
+
+    return info_list;
 }

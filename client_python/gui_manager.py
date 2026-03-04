@@ -15,7 +15,7 @@ class TrafficGUI:
         self.net.on_disconnection = self.handle_disconnection
         
         self.root.title("Monitorizare Trafic - Continental")
-        self.root.geometry("650x700")
+        self.root.geometry("650x750")
         self.root.configure(bg="#0099ff")
 
         self.setup_start_screen()
@@ -64,23 +64,41 @@ class TrafficGUI:
         self.entry_nr_auto = tk.Entry(self.root, bg="#0062a3")
         self.entry_nr_auto.pack()
 
+        #Check-uri pentru preferinte
+        self.var_vreme = tk.IntVar(value=0)
+        self.var_sport = tk.IntVar(value=0)
+        self.var_peco = tk.IntVar(value=0)
+
+        tk.Label(self.root, text="Preferințe Infotainment:", bg="#0099ff", fg="white", font=("Arial", 10, "bold")).pack(pady=5)
+        
+        tk.Checkbutton(self.root, text="Vreme", variable=self.var_vreme, bg="#0099ff", selectcolor="#0062a3").pack()
+        tk.Checkbutton(self.root, text="Sport", variable=self.var_sport, bg="#0099ff", selectcolor="#0062a3").pack()
+        tk.Checkbutton(self.root, text="Prețuri PECO", variable=self.var_peco, bg="#0099ff", selectcolor="#0062a3").pack()
+
         tk.Button(self.root, text="Creează Cont", command=self.handle_signup, highlightbackground="#0099ff").pack()
         tk.Button(self.root, text="Înapoi", command=self.setup_start_screen, highlightbackground="#0099ff").pack()
 
     def handle_signup(self):
-        # Colectăm toate datele
-        data = {
-            "type": "signup",
-            "email": self.entry_email.get(),
-            "password": self.entry_parola.get(),
-            "nume": self.entry_nume.get(),
-            "masina": self.entry_model.get(),
-            "numar_masina": self.entry_nr_auto.get(),
-            "user_id": self.current_user.user_id # ID-ul generat automat
+        required_fields = {
+        "email": self.entry_email.get(),
+        "password": self.entry_parola.get(),
+        "nume": self.entry_nume.get(),
+        "masina": self.entry_model.get(),
+        "numar_masina": self.entry_nr_auto.get()
         }
-        if not all(data.values()):
-            messagebox.showwarning("Atenție", "Toate câmpurile sunt obligatorii!")
+
+        if not all(required_fields.values()):
+            messagebox.showwarning("Atenție", "Toate câmpurile de identitate sunt obligatorii!")
             return
+        
+        data = {
+        "type": "signup",
+        **required_fields,
+        "user_id": self.current_user.user_id,
+        "pref_vreme": self.var_vreme.get(),
+        "pref_sport": self.var_sport.get(),
+        "pref_peco": self.var_peco.get()
+        }
 
         if self.net.connect():
             self.net.send_json(data)
@@ -154,6 +172,27 @@ class TrafficGUI:
         self.status_text.pack(pady=5, padx=20, fill="x")
         self.log_message(f"Sistem pornit. Monitorizare activă pentru {self.current_user.nume}.")
 
+        infotainment_frame = tk.Frame(self.root, bg="#0099ff")
+        infotainment_frame.pack(pady=5)
+
+        # Inițializăm variabilele cu valorile primite la login (sau 0 implicit)
+        self.pref_vreme = tk.IntVar(value=getattr(self.current_user, 'pref_vreme', 0))
+        self.pref_sport = tk.IntVar(value=getattr(self.current_user, 'pref_sport', 0))
+        self.pref_peco = tk.IntVar(value=getattr(self.current_user, 'pref_peco', 0))
+
+        # Creăm Checkbutoanele cu o comandă care trimite imediat update-ul la server
+        tk.Checkbutton(infotainment_frame, text="Vreme", variable=self.pref_vreme, 
+                    command=self.update_server_preferences, bg="#0099ff", fg="white", 
+                    selectcolor="#0062a3", activebackground="#0099ff").pack(side="left", padx=10)
+        
+        tk.Checkbutton(infotainment_frame, text="Sport", variable=self.pref_sport, 
+                    command=self.update_server_preferences, bg="#0099ff", fg="white", 
+                    selectcolor="#0062a3", activebackground="#0099ff").pack(side="left", padx=10)
+        
+        tk.Checkbutton(infotainment_frame, text="PECO", variable=self.pref_peco, 
+                    command=self.update_server_preferences, bg="#0099ff", fg="white", 
+                    selectcolor="#0062a3", activebackground="#0099ff").pack(side="left", padx=10)
+
         # Buton pentru raportare accident la locația curentă
         tk.Button(self.root, text="Raportează Accident Aici", 
                 command=self.send_accident_from_map,
@@ -167,7 +206,18 @@ class TrafficGUI:
         # 1. Închidem socket-ul
         if self.net:
             self.net.on_disconnection = None
-            self.net.disconnect()
+            self.net.is_running = False
+
+            if hasattr(self.net, 'socket') and self.net.socket:
+                try:
+                    # Folosim shutdown pentru a opri fluxurile de date imediat (RDWR = 2)
+                    self.net.socket.shutdown(2) 
+                    self.net.socket.close()
+                    print("[DEBUG] Socket închis cu succes la logout.")
+                except Exception as e:
+                    print(f"[DEBUG] Eroare la închiderea socket-ului: {e}")
+                finally:
+                    self.net.socket = None
         
         # 2. Resetăm obiectul UserProfile (să nu rămână datele vechi în memorie)
         self.current_user.clear()
@@ -199,6 +249,23 @@ class TrafficGUI:
             # Dacă a dat Cancel, nu trimitem nimic
             print("Raportare anulată de utilizator.")
 
+    def update_server_preferences(self):
+        if self.net and self.net.is_running:
+            data = {
+                "type": "update_preferences",
+                "vreme": self.pref_vreme.get(),
+                "sport": self.pref_sport.get(),
+                "peco": self.pref_peco.get()
+            }
+            self.net.send_json(data)
+            # Salvăm și local în obiectul user pentru consistență
+            self.current_user.pref_vreme = data["vreme"]
+            self.current_user.pref_sport = data["sport"]
+            self.current_user.pref_peco = data["peco"]
+            
+            status = "activate" if any([data["vreme"], data["sport"], data["peco"]]) else "dezactivate"
+            print(f"[DEBUG] Preferințe {status} trimise către server.")
+
     def display_message(self, raw_data):
         try:
             # Transformăm string-ul brut în obiect Python (dicționar)
@@ -229,11 +296,11 @@ class TrafficGUI:
             elif msg_type == "zone_limit_update":
                 self.handle_speed_limit_advisory(data)
             elif msg_type == "actual_speed":
-                self.handle_actual_speed_confirmation(data)
+                self.handle_actual_speed_and_infotaiment_confirmation(data)
             elif msg_type == "initial_accidents_sync":
                 accidents_list = data.get("data", [])
                 # Folosim o mică întârziere pentru a fi siguri că ecranul principal s-a încărcat
-                self.root.after(500, lambda: self.load_initial_markers(accidents_list))
+                self.root.after(100, lambda: self.load_initial_markers(accidents_list))
             else:    
                 print(f"Tip mesaj necunoscut: {msg_type}")
 
@@ -297,7 +364,7 @@ class TrafficGUI:
             msg = f"ℹ️ LIMITĂ NOUĂ: {limita_server} km/h - {motiv}"
             self.root.after(0, lambda: self.log_message(msg))
 
-    def handle_actual_speed_confirmation(self, data):
+    def handle_actual_speed_and_infotaiment_confirmation(self, data):
         """Confirmă raportul oficial de viteză trimis la 15 secunde."""
         limita = data.get("limit")
         viteza_mea = self.speed_slider.get()
@@ -307,6 +374,18 @@ class TrafficGUI:
             self.log_message(f"⚠️ RAPORT: Depășești limita de {limita} km/h! ({viteza_mea} km/h)", "red")
         else:
             self.log_message(f"✅ RAPORT: Viteza ta ({viteza_mea} km/h) este regulamentară.", "green")
+
+        #partea de infotaiment
+        news_items = data.get("infotainment_news", [])
+        for item in news_items:
+            cat = item.get("category")
+            text = item.get("text")
+            
+            # Selectăm pictograma în funcție de categorie
+            icon = "☀️" if cat == "VREME" else "⚽" if cat == "SPORT" else "⛽"
+            
+            # Afișăm în log imediat după raportul de viteză
+            self.root.after(0, lambda c=cat, t=text, i=icon: self.log_message(f"{i} [{c}] {t}", "black"))
         
     def load_initial_markers(self, accidents):
         for acc in accidents:
@@ -324,6 +403,10 @@ class TrafficGUI:
             self.current_user.nume = data.get("nume")
             self.current_user.masina = data.get("masina")
             self.current_user.nr_auto = data.get("numar_masina")
+
+            self.current_user.pref_vreme = data.get("pref_vreme", 0)
+            self.current_user.pref_sport = data.get("pref_sport", 0)
+            self.current_user.pref_peco = data.get("pref_peco", 0)
 
             self.root.after(0, lambda: messagebox.showinfo("Succes", f"Salut, {self.current_user.nume}!"))
             self.root.after(0, self.setup_main_screen)

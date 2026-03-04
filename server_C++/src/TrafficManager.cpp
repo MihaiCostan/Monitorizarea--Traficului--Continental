@@ -69,11 +69,15 @@ void TrafficManager::proceseaza_mesaj(int client_socket,
         }
         else if (type == "actual_speed")
         {
-            handle_actual_speed_update(client_socket, j);
+            handle_actual_speed_update_and_infotaiment(client_socket, j);
         }
         else if (type == "accident")
         {
             handle_accident(client_socket, j, toti_clientii);
+        }
+        else if (type == "update_preferences")
+        {
+            handle_update_preferences(client_socket, j);
         }
     }
     catch (std::exception &e)
@@ -82,7 +86,7 @@ void TrafficManager::proceseaza_mesaj(int client_socket,
     }
 }
 
-void TrafficManager::handle_actual_speed_update(int socket, const json &j)
+void TrafficManager::handle_actual_speed_update_and_infotaiment(int socket, const json &j)
 {
     if (participanti.count(socket))
     {
@@ -93,6 +97,8 @@ void TrafficManager::handle_actual_speed_update(int socket, const json &j)
         // Calculăm limita de viteză curentă bazată pe locație
         json advisory = db.get_speed_limit_at_location(lat, lng);
         advisory["type"] = "actual_speed";
+
+        advisory["infotainment_news"] = db.get_infotaiment(participanti[socket].email);
 
         // Trimitem răspunsul DOAR clientului care a făcut update-ul
         broadcast_single_client(socket, advisory);
@@ -117,6 +123,24 @@ void TrafficManager::handle_accident(int socket, const json &j,
     }
     else
         std::cout << "Eroare la inserarea accidentului in baza de date!\n";
+}
+
+void TrafficManager::handle_update_preferences(int client_socket, json &j)
+{
+    if (participanti.count(client_socket))
+    {
+        // Actualizăm în RAM pentru utilizare imediată
+        participanti[client_socket].vrea_vreme = (int)j["vreme"];
+        participanti[client_socket].vrea_sport = (int)j["sport"];
+        participanti[client_socket].vrea_peco = (int)j["peco"];
+
+        // Actualizăm permanent în Baza de Date
+        db.update_user_preferences(
+            participanti[client_socket].email,
+            j["vreme"], j["sport"], j["peco"]);
+
+        std::cout << "[SERVER]: Preferințe infotainment actualizate pentru " << participanti[client_socket].nume << "\n";
+    }
 }
 
 void TrafficManager::broadcast_single_client(int socket, const json &j)
