@@ -259,7 +259,7 @@ class TrafficGUI:
             self.net.send_json(data)
 
         # Reapelam funcția peste 60 secunde
-        self.root.after(15000, self.start_auto_speed_update)
+        self.root.after(60000, self.start_auto_speed_update)
 
     def display_message(self, raw_data):
         try:

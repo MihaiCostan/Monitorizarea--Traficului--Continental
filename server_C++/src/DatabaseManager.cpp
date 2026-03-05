@@ -254,7 +254,7 @@ json DatabaseManager::get_infotaiment(const std::string &email)
     // 2. Colectăm mesajele în funcție de preferințe
     auto collect = [&](const std::string &cat)
     {
-        std::string sql = "SELECT continut FROM extra_info WHERE categorie = ? ORDER BY id DESC LIMIT 1;";
+        std::string sql = "SELECT continut FROM extra_info WHERE categorie = ? ORDER BY RANDOM() LIMIT 1;";
         if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) == SQLITE_OK)
         {
             sqlite3_bind_text(stmt, 1, cat.c_str(), -1, SQLITE_TRANSIENT);
