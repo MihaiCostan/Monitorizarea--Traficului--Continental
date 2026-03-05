@@ -1,107 +1,89 @@
-# Monitorizarea Traficului
+# Traffic Monitoring System
 
-Unified repository for a traffic monitoring system with a C++ server and a Python client.
+This project implements a comprehensive traffic monitoring system that captures, processes, and stores network traffic data. It features a C++ backend for high-performance data handling and a Python-based graphical user interface (GUI) for real-time visualization and management.
 
-## Overview
+## Features
 
-- **Purpose:** Collect, process and store traffic data on the server; provide a Python GUI client for visualization and interaction.
-- **Components:** a C++ server (network listener, database manager, traffic manager) and a Python client GUI.
+- **Real-time Traffic Monitoring:** Captures and analyzes network traffic in real-time.
+- **Database Integration:** Utilizes a database (SQLite) for persistent storage of traffic data.
+- **JSON Data Simulation:** Simulates JSON files for efficient data exchange and configuration.
+- **Robust Network Communication:** Employs TCP/IP for reliable client-server communication.
+- **Multi-threaded Server Architecture:** Handles multiple client connections concurrently for high scalability.
+- **Python GUI:** Provides an intuitive graphical interface for users to interact with the system, display traffic statistics, and manage configurations.
+- **Cross-platform Compatibility:** Designed to run on various operating systems.
 
-## Repository Structure
+## Technologies Used
 
-- **Server (C++):** `server_C++/`
-  - [server_C++/src](server_C++/src) — implementation (.cpp files)
-  - [server_C++/include](server_C++/include) — headers like `DatabaseManager.hpp`, `TCPServer.hpp`, `TrafficManager.hpp`
-  - [server_C++/Makefile](server_C++/Makefile) — build rules
-- **Client (Python):** `client_python/`
-  - [client_python/main.py](client_python/main.py) — application entry
-  - [client_python/gui_manager.py](client_python/gui_manager.py) — GUI code
-  - [client_python/network_manager.py](client_python/network_manager.py) — networking helpers
-  - [client_python/models.py](client_python/models.py) — data models
+- **C++:** For the high-performance backend server, responsible for traffic capture, processing, and database interaction.
+- **Python:** For the client-side application, including the GUI and network communication with the server.
+- **Databases:** Integrated with a database system for efficient data storage and retrieval.
+- **JSON:** Used for data serialization and deserialization, particularly for configuration and simulated data.
+- **TCP/IP Sockets:** For establishing reliable communication channels between the client and server.
 
-## Prerequisites
+## Project Structure
 
-- C++ toolchain: `g++` / `clang++` and `make` (for the server)
-- Python 3.8+ and `pip` (for the client)
-- `sqlite3` (used by the server for persistent storage)
+The project is organized into two main components:
 
-## Server: Build & Run
+- **`server_C++/`**: Contains the C++ server implementation.
+  - `include/`: Header files for various server modules (e.g., `DatabaseManager.hpp`, `TCPServer.hpp`, `TrafficManager.hpp`, `json.hpp`).
+  - `src/`: Source files for server modules (e.g., `DatabaseManager.cpp`, `TCPServer.cpp`, `TrafficManager.cpp`, `main.cpp`).
+  - `Makefile`: Build script for compiling the C++ server.
+  - `traffic_server`: Compiled executable of the C++ server.
 
-1. Build from the `server_C++` directory:
+- **`client_python/`**: Contains the Python client application.
+  - `gui_manager.py`: Manages the graphical user interface.
+  - `main.py`: Main entry point for the Python client.
+  - `models.py`: Defines data models used in the client application.
+  - `network_manager.py`: Handles network communication between the Python client and the C++ server.
 
-```bash
-cd server_C++
-make
-```
+## Getting Started
 
-2. After a successful build, run the produced server binary. The binary name depends on the `Makefile`; a common pattern is:
+### Prerequisites
 
-```bash
-./server   # or the executable produced by the Makefile
-```
+- C++ Compiler (e.g., g++)
+- Python 3.x
+- Required Python packages (install using `pip install -r requirements.txt` in `client_python/`)
 
-3. Database: the server uses an SQLite database (e.g. `traffic.db`). If one does not exist create it:
+### Building and Running the Server (C++)
 
-```bash
-cd server_C++
-sqlite3 traffic.db
-```
+1.  Navigate to the `server_C++/` directory:
+    ```bash
+    cd server_C++
+    ```
+2.  Compile the server:
+    ```bash
+    make
+    ```
+3.  Run the server:
+    ```bash
+    ./traffic_server
+    ```
 
-If your project includes SQL schema or migration scripts add them to `server_C++/` and apply before running the server.
+### Running the Client (Python)
 
-## Client: Setup & Run
+1.  Navigate to the `client_python/` directory:
+    ```bash
+    cd client_python
+    ```
+2.  Install Python dependencies (if any, a `requirements.txt` file might be needed):
+    ```bash
+    pip install -r requirements.txt
+    ```
+3.  Run the client application:
+    ```bash
+    python main.py
+    ```
 
-1. Create and activate a Python virtual environment (recommended):
+## Configuration
 
-```bash
-cd client_python
-python3 -m venv venv
-source venv/bin/activate
-```
+Configuration details for both the client and server can be found in their respective modules. JSON files are used for simulating data and may also be used for configuration purposes.
 
-2. Install dependencies. If a `requirements.txt` exists, use it; otherwise install required packages manually (example):
+## Contribution
 
-```bash
-pip install -r requirements.txt  # if present
-# or example: pip install pyqt5 requests
-```
-
-3. Run the client GUI:
-
-```bash
-python main.py
-```
-
-The client expects to connect to the server TCP endpoint; configure host/port in [client_python/network_manager.py](client_python/network_manager.py) or via the GUI settings if provided.
-
-## Development Notes
-
-- Server code entrypoint: [server_C++/src/main.cpp](server_C++/src/main.cpp)
-- Key headers: [server_C++/include/DatabaseManager.hpp](server_C++/include/DatabaseManager.hpp), [server_C++/include/TCPServer.hpp](server_C++/include/TCPServer.hpp), [server_C++/include/TrafficManager.hpp](server_C++/include/TrafficManager.hpp)
-- Client GUI: [client_python/gui_manager.py](client_python/gui_manager.py)
-
-## Testing / Debugging
-
-- Use `sqlite3` to inspect the database contents: `sqlite3 traffic.db` then run queries.
-- Server logs / stdout will show connection attempts and processing details; run the server from a terminal to view them.
-- Use multiple client instances to simulate traffic sources.
-
-## Contributing
-
-- Open an issue with a description of the change/bug.
-- Create feature branches, run and verify both server and client locally, and open a pull request.
-
-## Next Steps / Suggestions
-
-- Add a `requirements.txt` for the client listing exact Python dependencies.
-- Add a `README` or `.sql` schema file in `server_C++/` if the DB schema is required for setup.
-
----
+Feel free to contribute to this project by submitting bug reports or feature requests.
 
 If you'd like, I can also:
 
 - add a `requirements.txt` for the Python client,
 - generate a SQL schema file for `traffic.db`, or
 - run the server build and report any build errors.
-
-Please tell me which of the above you'd like me to do next.
