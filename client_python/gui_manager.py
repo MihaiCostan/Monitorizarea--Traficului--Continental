@@ -12,7 +12,7 @@ class TrafficGUI:
         self.current_user = UserProfile()
 
         self.net.on_message_received = self.display_message
-        self.net.on_disconnection = self.handle_disconnection
+        self.net.on_disconnection = self._handle_disconnection
         
         self.root.title("Monitorizare Trafic - Continental")
         self.root.geometry("650x750")
@@ -22,7 +22,7 @@ class TrafficGUI:
 
     def setup_start_screen(self):
         self.clear_screen()
-        tk.Label(self.root, text="BINE AI VENIT", font=("Arial", 16, "bold"), bg="#0099ff", fg="white").pack(pady=30)
+        tk.Label(self.root, text="BINE AI VENIT!", font=("Arial", 16, "bold"), bg="#0099ff", fg="white").pack(pady=30)
         
         tk.Button(self.root, text="LOGIN", width=20, command=self.setup_login_screen, highlightbackground="#0099ff").pack(pady=10)
         tk.Button(self.root, text="SIGNUP", width=20, command=self.setup_signup_screen, highlightbackground="#0099ff").pack(pady=10)
@@ -37,7 +37,8 @@ class TrafficGUI:
         tk.Label(self.root, text="ID-ul tău de sistem (automat):", 
                  fg="white", bg="#0099ff").pack()
         tk.Label(self.root, text=self.current_user.user_id, font=("Courier", 14, "bold"), 
-                 fg="#ff0000", bg="#0099ff").pack(pady=5)
+                 fg="#dd1100", bg="#0099ff").pack(pady=5)
+
 
         # Câmpul pentru NUME
         tk.Label(self.root, text="Nume Complet:", bg="#0099ff").pack()
@@ -64,18 +65,21 @@ class TrafficGUI:
         self.entry_nr_auto = tk.Entry(self.root, bg="#0062a3")
         self.entry_nr_auto.pack()
 
+
         #Check-uri pentru preferinte
+        tk.Label(self.root, text="Preferințe Infotainment:", bg="#0099ff", fg="white", font=("Arial", 10, "bold")).pack()
+        infotainment_frame = tk.Frame(self.root, bg="#0099ff")
+        infotainment_frame.pack()
+
         self.var_vreme = tk.IntVar(value=0)
         self.var_sport = tk.IntVar(value=0)
         self.var_peco = tk.IntVar(value=0)
 
-        tk.Label(self.root, text="Preferințe Infotainment:", bg="#0099ff", fg="white", font=("Arial", 10, "bold")).pack(pady=5)
-        
-        tk.Checkbutton(self.root, text="Vreme", variable=self.var_vreme, bg="#0099ff", selectcolor="#0062a3").pack()
-        tk.Checkbutton(self.root, text="Sport", variable=self.var_sport, bg="#0099ff", selectcolor="#0062a3").pack()
-        tk.Checkbutton(self.root, text="Prețuri PECO", variable=self.var_peco, bg="#0099ff", selectcolor="#0062a3").pack()
+        tk.Checkbutton(infotainment_frame, text="Vreme", variable=self.var_vreme, bg="#0099ff", selectcolor="#0062a3").pack(side="left")
+        tk.Checkbutton(infotainment_frame, text="Sport", variable=self.var_sport, bg="#0099ff", selectcolor="#0062a3").pack(side="left")
+        tk.Checkbutton(infotainment_frame, text="Prețuri PECO", variable=self.var_peco, bg="#0099ff", selectcolor="#0062a3").pack(side="left")
 
-        tk.Button(self.root, text="Creează Cont", command=self.handle_signup, highlightbackground="#0099ff").pack()
+        tk.Button(self.root, text="Creează Cont", command=self.handle_signup, highlightbackground="#0099ff").pack(pady=5)
         tk.Button(self.root, text="Înapoi", command=self.setup_start_screen, highlightbackground="#0099ff").pack()
 
     def handle_signup(self):
@@ -143,6 +147,29 @@ class TrafficGUI:
         else:
             messagebox.showerror("Eroare", "Serverul nu răspunde!")
 
+    def handle_logout(self):
+        # inchidem socket-ul
+        if self.net:
+            self.net.on_disconnection = None
+            self.net.is_running = False
+
+            if hasattr(self.net, 'socket') and self.net.socket:
+                try:
+                    # Folosim shutdown pentru a opri fluxurile de date imediat (RDWR = 2)
+                    self.net.socket.shutdown(2) 
+                    self.net.socket.close()
+                    print("[DEBUG] Socket închis cu succes la logout.")
+                except Exception as e:
+                    print(f"[DEBUG] Eroare la închiderea socket-ului: {e}")
+                finally:
+                    self.net.socket = None
+        
+        # resetez obiectul UserProfile
+        self.current_user.clear()
+        
+        self.setup_start_screen()
+        messagebox.showinfo("Logout", "Te-ai delogat cu succes!")
+
     # UI Main Screen
     def setup_main_screen(self):
         self.clear_screen()
@@ -153,7 +180,6 @@ class TrafficGUI:
 
         #punct de referinta centru
         self.reticle = tk.Label(self.map_widget, text="X", font=("Arial", 3), fg="red", bg="red", padx=2)
-        # relx=0.5 și rely=0.5 îl vor ține mereu la mijloc, indiferent de mărimea ferestrei
         self.reticle.place(relx=0.5, rely=0.5, anchor="center")
 
         # Setăm poziția inițială (ex: Iași sau București)
@@ -163,7 +189,7 @@ class TrafficGUI:
         #Slider pentru viteza actuala
         tk.Label(self.root, text="Viteza Ta Actuală (km/h):", bg="#0099ff", fg="white").pack()
         self.speed_slider = tk.Scale(self.root, from_=0, to=150, orient="horizontal", bg="#0099ff")
-        self.speed_slider.set(50) # Viteza implicită
+        self.speed_slider.set(50) #viteza implicita
         self.speed_slider.pack(fill="x", padx=20)
 
         #Loguri pentru accidente / eventuri
@@ -172,6 +198,7 @@ class TrafficGUI:
         self.status_text.pack(pady=5, padx=20, fill="x")
         self.log_message(f"Sistem pornit. Monitorizare activă pentru {self.current_user.nume}.")
 
+        #infotainment view
         infotainment_frame = tk.Frame(self.root, bg="#0099ff")
         infotainment_frame.pack(pady=5)
 
@@ -201,127 +228,7 @@ class TrafficGUI:
 
         self.start_location_polling()
         self.start_auto_speed_update()
-
-    def handle_logout(self):
-        # 1. Închidem socket-ul
-        if self.net:
-            self.net.on_disconnection = None
-            self.net.is_running = False
-
-            if hasattr(self.net, 'socket') and self.net.socket:
-                try:
-                    # Folosim shutdown pentru a opri fluxurile de date imediat (RDWR = 2)
-                    self.net.socket.shutdown(2) 
-                    self.net.socket.close()
-                    print("[DEBUG] Socket închis cu succes la logout.")
-                except Exception as e:
-                    print(f"[DEBUG] Eroare la închiderea socket-ului: {e}")
-                finally:
-                    self.net.socket = None
-        
-        # 2. Resetăm obiectul UserProfile (să nu rămână datele vechi în memorie)
-        self.current_user.clear()
-        
-        # 3. Revenim la ecranul de start
-        self.setup_start_screen()
-        messagebox.showinfo("Logout", "Te-ai delogat cu succes!")
-
-    def send_accident_from_map(self):
-        # get_position() ne dă (lat, lng) pentru centrul hărții, fix sub "+" nostru
-        lat, lng = self.map_widget.get_position()
-
-        nume_strada = simpledialog.askstring("Raportare Accident", 
-                                         "Pe ce stradă se află accidentul?")
-        if nume_strada:
-            accident_data = {
-                "type": "accident",
-                "email": self.current_user.email,
-                "lat": lat,
-                "long": lng,
-                "locatie": nume_strada, # Numele introdus de utilizator
-                "mesaj": f"Raportat pe {nume_strada}"
-            }
-            
-            # 3. Trimitem la server
-            self.net.send_json(accident_data)
-            messagebox.showinfo("Succes", f"Accidentul de pe {nume_strada} a fost raportat!")
-        else:
-            # Dacă a dat Cancel, nu trimitem nimic
-            print("Raportare anulată de utilizator.")
-
-    def update_server_preferences(self):
-        if self.net and self.net.is_running:
-            data = {
-                "type": "update_preferences",
-                "vreme": self.pref_vreme.get(),
-                "sport": self.pref_sport.get(),
-                "peco": self.pref_peco.get()
-            }
-            self.net.send_json(data)
-            # Salvăm și local în obiectul user pentru consistență
-            self.current_user.pref_vreme = data["vreme"]
-            self.current_user.pref_sport = data["sport"]
-            self.current_user.pref_peco = data["peco"]
-            
-            status = "activate" if any([data["vreme"], data["sport"], data["peco"]]) else "dezactivate"
-            print(f"[DEBUG] Preferințe {status} trimise către server.")
-
-    def display_message(self, raw_data):
-        try:
-            # Transformăm string-ul brut în obiect Python (dicționar)
-            data = json.loads(raw_data)
-            msg_type = data.get("type")
-
-            # Rutăm mesajul către funcția potrivită în funcție de "type"
-            if msg_type == "login_response":
-                self._handle_login_response(data)
-                
-            elif msg_type == "signup_response":
-                self._handle_signup_response(data)
-
-            elif msg_type == "accident":
-                nume = data.get("nume")
-                detalii = data.get("mesaj")
-                locatie = data.get("locatie")
-                sender = data.get("sender")
-                
-                # 1. Adăugăm în log-ul de pe ecran
-                self.root.after(0, lambda: self.log_message(f"⚠️ ACCIDENT {detalii} de userul {nume} cu nr. {sender}."))
-                
-                # 2. Punem și markerul pe hartă (dacă avem coordonatele)
-                lat = data.get("lat")
-                lng = data.get("long")
-                if lat and lng:
-                    self.root.after(0, lambda: self.map_widget.set_marker(lat, lng, text=f"Accident: {locatie}"))
-            elif msg_type == "zone_limit_update":
-                self.handle_speed_limit_advisory(data)
-            elif msg_type == "actual_speed":
-                self.handle_actual_speed_and_infotaiment_confirmation(data)
-            elif msg_type == "initial_accidents_sync":
-                accidents_list = data.get("data", [])
-                # Folosim o mică întârziere pentru a fi siguri că ecranul principal s-a încărcat
-                self.root.after(100, lambda: self.load_initial_markers(accidents_list))
-            else:    
-                print(f"Tip mesaj necunoscut: {msg_type}")
-
-        except json.JSONDecodeError:
-            print(f"Eroare: Serverul a trimis un format non-JSON: {raw_data}")
-        except Exception as e:
-            print(f"Eroare generală în display_message: {e}")
-
-    def log_message(self, message, color="black"):
-        if hasattr(self, 'status_text') and self.status_text.winfo_exists():
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            self.status_text.configure(state='normal')
-
-            self.status_text.tag_config("red", foreground="red")
-            self.status_text.tag_config("green", foreground="green")
-            self.status_text.tag_config("black", foreground="black")
-
-            self.status_text.insert(tk.END, f"[{timestamp}] {message}\n", color)
-            self.status_text.see(tk.END) # Scroll automat la final
-            self.status_text.configure(state='disabled')
-
+    
     #update locatie o data pe secunda
     def start_location_polling(self):
         if self.net and self.net.is_running:
@@ -354,47 +261,33 @@ class TrafficGUI:
         # Reapelam funcția peste 60 secunde
         self.root.after(15000, self.start_auto_speed_update)
 
-    def handle_speed_limit_advisory(self, data):
-        limita_server = data.get("limit")
-        motiv = data.get("reason")
-        
-        # Verificăm dacă limita s-a schimbat față de ultima dată pentru a loga o singură dată
-        if not hasattr(self, 'current_limit') or self.current_limit != limita_server:
-            self.current_limit = limita_server
-            msg = f"ℹ️ LIMITĂ NOUĂ: {limita_server} km/h - {motiv}"
-            self.root.after(0, lambda: self.log_message(msg))
+    def display_message(self, raw_data):
+        try:
+            data = json.loads(raw_data)
+            msg_type = data.get("type")
 
-    def handle_actual_speed_and_infotaiment_confirmation(self, data):
-        """Confirmă raportul oficial de viteză trimis la 15 secunde."""
-        limita = data.get("limit")
-        viteza_mea = self.speed_slider.get()
+            # Rutăm mesajul către funcția potrivită în funcție de "type"
+            if msg_type == "login_response":
+                self._handle_login_response(data)
+            elif msg_type == "signup_response":
+                self._handle_signup_response(data)
+            elif msg_type == "accident":
+                self._handle_accident(data)
+            elif msg_type == "zone_limit_update":
+                self._handle_speed_limit_advisory(data)
+            elif msg_type == "actual_speed":
+                self._handle_actual_speed_and_infotaiment_confirmation(data)
+            elif msg_type == "initial_accidents_sync":
+                accidents_list = data.get("data", [])
+                # Folosim o mică întârziere pentru a fi siguri că ecranul principal s-a încărcat
+                self.root.after(100, lambda: self.load_initial_markers(accidents_list))
+            else:    
+                print(f"Tip mesaj necunoscut: {msg_type}")
 
-        # Aici afișăm log-urile colorate (verde/roșu)
-        if viteza_mea > limita:
-            self.log_message(f"⚠️ RAPORT: Depășești limita de {limita} km/h! ({viteza_mea} km/h)", "red")
-        else:
-            self.log_message(f"✅ RAPORT: Viteza ta ({viteza_mea} km/h) este regulamentară.", "green")
-
-        #partea de infotaiment
-        news_items = data.get("infotainment_news", [])
-        for item in news_items:
-            cat = item.get("category")
-            text = item.get("text")
-            
-            # Selectăm pictograma în funcție de categorie
-            icon = "☀️" if cat == "VREME" else "⚽" if cat == "SPORT" else "⛽"
-            
-            # Afișăm în log imediat după raportul de viteză
-            self.root.after(0, lambda c=cat, t=text, i=icon: self.log_message(f"{i} [{c}] {t}", "black"))
-        
-    def load_initial_markers(self, accidents):
-        for acc in accidents:
-            lat = acc.get("lat")
-            lng = acc.get("long")
-            locatie = acc.get("locatie")
-            if lat and lng:
-                self.map_widget.set_marker(lat, lng, text=f"Accident: {locatie}")
-        self.log_message(f"🔄 Sincronizat: {len(accidents)} accidente încărcate pe hartă.")
+        except json.JSONDecodeError:
+            print(f"Eroare: Serverul a trimis un format non-JSON: {raw_data}")
+        except Exception as e:
+            print(f"Eroare generală în display_message: {e}")
 
     def _handle_login_response(self, data):
         if data.get("status") == "success":
@@ -421,7 +314,110 @@ class TrafficGUI:
         else:
             self.root.after(0, lambda: messagebox.showerror("Eroare", data.get("msg")))
 
-    def handle_disconnection(self):
+    def _handle_accident(self, data):
+        nume = data.get("nume")
+        detalii = data.get("mesaj")
+        locatie = data.get("locatie")
+        sender = data.get("sender")
+        
+        # 1. Adăugăm în log-ul de pe ecran
+        self.root.after(0, lambda: self.log_message(f"⚠️ ACCIDENT {detalii} de userul {nume} cu nr. {sender}."))
+        
+        # 2. Punem și markerul pe hartă (dacă avem coordonatele)
+        lat = data.get("lat")
+        lng = data.get("long")
+        if lat and lng:
+            self.root.after(0, lambda: self.map_widget.set_marker(lat, lng, text=f"Accident: {locatie}"))
+
+    def _handle_speed_limit_advisory(self, data):
+        limita_server = data.get("limit")
+        motiv = data.get("reason")
+        
+        # Verificăm dacă limita s-a schimbat față de ultima dată pentru a loga o singură dată
+        if not hasattr(self, 'current_limit') or self.current_limit != limita_server:
+            self.current_limit = limita_server
+            msg = f"ℹ️ LIMITĂ NOUĂ: {limita_server} km/h - {motiv}"
+            self.root.after(0, lambda: self.log_message(msg))
+
+    def _handle_actual_speed_and_infotaiment_confirmation(self, data):
+        limita = data.get("limit")
+        viteza_mea = self.speed_slider.get()
+
+        # Aici afișăm log-urile colorate (verde/roșu)
+        if viteza_mea > limita:
+            self.log_message(f"⚠️ RAPORT: Depășești limita de {limita} km/h! ({viteza_mea} km/h)", "red")
+        else:
+            self.log_message(f"✅ RAPORT: Viteza ta ({viteza_mea} km/h) este regulamentară.", "green")
+
+        #partea de infotaiment
+        news_items = data.get("infotainment_news", [])
+        for item in news_items:
+            cat = item.get("category")
+            text = item.get("text")
+            
+            # Selectăm pictograma în funcție de categorie
+            icon = "☀️" if cat == "VREME" else "⚽" if cat == "SPORT" else "⛽"
+            
+            # Afișăm în log imediat după raportul de viteză
+            self.root.after(0, lambda c=cat, t=text, i=icon: self.log_message(f"{i} [{c}] {t}", "black"))
+
+    def log_message(self, message, color="black"):
+        if hasattr(self, 'status_text') and self.status_text.winfo_exists():
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.status_text.configure(state='normal')
+
+            self.status_text.tag_config("red", foreground="red")
+            self.status_text.tag_config("green", foreground="green")
+            self.status_text.tag_config("black", foreground="black")
+
+            self.status_text.insert(tk.END, f"[{timestamp}] {message}\n", color)
+            self.status_text.see(tk.END) # Scroll automat la final
+            self.status_text.configure(state='disabled')
+
+    def send_accident_from_map(self):
+        lat, lng = self.map_widget.get_position()
+
+        nume_strada = simpledialog.askstring("Raportare Accident", 
+                                         "Pe ce stradă se află accidentul?")
+        if nume_strada:
+            accident_data = {
+                "type": "accident",
+                "email": self.current_user.email,
+                "lat": lat,
+                "long": lng,
+                "locatie": nume_strada, # Numele strazii introdus de utilizator
+                "mesaj": f"Raportat pe {nume_strada}"
+            }
+            
+            # trimit la server
+            self.net.send_json(accident_data)
+            messagebox.showinfo("Succes", f"Accidentul de pe {nume_strada} a fost raportat!")
+
+    def update_server_preferences(self):
+        if self.net and self.net.is_running:
+            data = {
+                "type": "update_preferences",
+                "vreme": self.pref_vreme.get(),
+                "sport": self.pref_sport.get(),
+                "peco": self.pref_peco.get()
+            }
+            self.net.send_json(data)
+
+            # Salvăm și local în obiectul user pentru consistență
+            self.current_user.pref_vreme = data["vreme"]
+            self.current_user.pref_sport = data["sport"]
+            self.current_user.pref_peco = data["peco"]
+        
+    def load_initial_markers(self, accidents):
+        for acc in accidents:
+            lat = acc.get("lat")
+            lng = acc.get("long")
+            locatie = acc.get("locatie")
+            if lat and lng:
+                self.map_widget.set_marker(lat, lng, text=f"Accident: {locatie}")
+        self.log_message(f"🔄 Sincronizat: {len(accidents)} accidente încărcate pe hartă.")
+
+    def _handle_disconnection(self):
         self.root.after(0, self._go_to_start_screen_after_error)
     
     def _go_to_start_screen_after_error(self):

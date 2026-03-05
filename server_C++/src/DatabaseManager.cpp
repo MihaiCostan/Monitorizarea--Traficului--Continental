@@ -146,10 +146,6 @@ bool DatabaseManager::add_accident(double lat, double lng, const std::string &st
     bool success = (sqlite3_step(stmt) == SQLITE_DONE);
     sqlite3_finalize(stmt);
 
-    if (success)
-    {
-        std::cout << "[DB] Accident stocat: " << strada << " (" << lat << ", " << lng << ")\n";
-    }
     return success;
 }
 

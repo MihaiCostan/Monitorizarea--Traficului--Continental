@@ -40,7 +40,7 @@ class NetworkManager:
                         print(f"Deconectare bruscă de la server!")
                         self.is_running = False # Oprim loop-ul
                         if self.on_disconnection:
-                            self.on_disconnection() # 2. Anunțăm deconectarea
+                            self.on_disconnection() # anunt deconectarea
                         break
                     messages = data.strip().split('\n')
                     for msg in messages:
@@ -52,9 +52,8 @@ class NetworkManager:
                     self.on_disconnection()
                 break
             
-    # În network_manager.py, în interiorul clasei NetworkManager
     def disconnect(self):
-        self.is_running = False  # Oprește loop-ul _receive_loop
+        self.is_running = False  # Oprește loop-ul
         if self.socket:
             try:
                 self.socket.close()

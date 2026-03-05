@@ -37,13 +37,11 @@ TCPServer::TCPServer(int port, TrafficManager &manager) : manager(manager)
         fprintf(stderr, "Listen failed");
         exit(EXIT_FAILURE);
     }
-    printf("[SERVER]: Server started on port %d\n", port);
+    std::cout << "[SERVER]: Server started on port " << port << "\n";
 }
 
 TCPServer::~TCPServer()
 {
-    printf("[SERVER]: Închidere socket-uri active...\n");
-
     // 1. Închidem toate conexiunile clienților
     for (int sd : clients_sockets)
     {
@@ -58,13 +56,12 @@ TCPServer::~TCPServer()
     if (server_fd > 0)
     {
         close(server_fd);
-        printf("[SERVER]: Socket principal (fd: %d) închis.\n", server_fd);
     }
+    std::cout << "[SERVER]: Serverul a fost inchis...\n";
 }
 
 void TCPServer::run()
 {
-    printf("[SERVER]: Server waiting for connections...\n");
     fd_set readfds;
     struct timeval timeout;
     int sd, max_sd, activity, new_socket;
@@ -109,7 +106,7 @@ void TCPServer::run()
                 exit(EXIT_FAILURE);
             }
 
-            printf("[SERVER] Conexiune noua! Socket: %d\n", new_socket);
+            std::cout << "[SERVER] Conexiune noua! Socket: " << new_socket << "\n";
             clients_sockets.push_back(new_socket);
         }
 
@@ -123,7 +120,7 @@ void TCPServer::run()
                 if (valread == 0)
                 {
                     // Client deconectat
-                    printf("[SERVER] Client deconectat: %d\n", sd);
+                    std::cout << "[SERVER] Client deconectat: " << sd << "\n";
                     close(sd);
                     it = clients_sockets.erase(it); // Ștergem din vector
                     continue;
@@ -137,5 +134,4 @@ void TCPServer::run()
             ++it;
         }
     }
-    std::cout << ("[SERVER]: Oprire gracefully detectată. Eliberăm resursele...\n");
 }

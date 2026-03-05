@@ -5,6 +5,7 @@
 #include "TCPServer.hpp"
 #include "TrafficManager.hpp"
 
+// semnal adaugat pentru momentul in care se inchide serverul fortat, pentru activarea destructorului bazei de date (stergerea accidentelor)
 std::atomic<bool> keep_running(true);
 
 void signal_handler(int signal)
@@ -24,9 +25,6 @@ int main()
 
         // serverul pe portul 1111 și managerul ca referinta
         TCPServer server(1111, trafficManager);
-
-        std::cout
-            << "[SYSTEM] Serverul de monitorizare trafic se inițializează...\n";
 
         //(aici va rula loop-ul cu select())
         server.run();
